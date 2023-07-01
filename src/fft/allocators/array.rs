@@ -1,30 +1,12 @@
-pub fn fft<const N: usize>(v: &[f32; N]) -> [f32; N] {
-    let h = N >> 1;
-    let (mut cloned_v, mut zero_v) = (*v, [0.0f32; N]);
-    let (mut old, mut new) = (&mut cloned_v, &mut zero_v);
-    let (mut sublen, mut stride) = (1, N);
-    let mut swapped = false;
-    let mut omega;
-    let f_n = N as f32;
-    while sublen < N {
-        stride >>= 1;
-        for i in 0..stride {
-            for k in (0..N).step_by(2 * stride) {
-                omega = (PI * (k as f32) / f_n).exp();
-                new[i + (k >> 1)] = old[i + k] + omega * old[i + k + stride];
-                new[i + (k >> 1) + h] = old[i + k] - omega * old[i + k + stride];
-            }
-        }
-        (old, new) = (new, old);
-        swapped = !swapped;
-        sublen <<= 1;
-    }
+use crate::fft::Allocator;
 
-    if swapped {
-        cloned_v.copy_from_slice(&zero_v)
-    }
+pub struct ArrayAllocator;
+impl<const N: usize> Allocator<f32, N> for ArrayAllocator {
+    type Element = [f32; N];
 
-    cloned_v
+    fn allocate() -> Self::Element {
+        [0.0f32; N]
+    }
 }
 
 // Ergün, Funda. (1995, June). Testing multivariate linear functions: Overcoming the generator bottleneck.
@@ -34,19 +16,27 @@ mod test {
     use std::fmt::Debug;
 
     use approx::assert_relative_eq;
+
+    use crate::fft::{implementations::cooley::Cooley, allocators::array::ArrayAllocator};
     const ALPHA: f32 = 0.5;
     const BETA: f32 = 0.75;
     const N: usize = 32;
 
+    fn test_engine<const N: usize>() -> crate::fft::Engine<f32, N, Cooley, ArrayAllocator> {
+        crate::fft::Engine::new()
+    }
+
     #[test]
     fn milion_test() {
-        let v: [f32; 65_536] = generate(|idx| f32::sin(idx as f32));
-        let fft: [f32; 65_536] = super::fft(&v); //Frequency size is 1Hz per bin
+        let v: [f32; 65_536] = generate_impulse::<65_536, 0>();
+        let engine = test_engine();
+        let fft: [f32; 65_536] = engine.fft(&v); //Frequency size is 1Hz per bin
         assert_eq!(1.0f32, fft[3]);
     }
 
     #[test]
     fn linearity_holds() {
+        let engine = test_engine();
         let v: [f32; N] = generate(|idx| idx as f32);
         let e: [f32; N] = generate(|idx| (idx + 1usize) as f32);
 
@@ -55,11 +45,11 @@ mod test {
         let b_e = e.map(|v| v * BETA);
         sum_v(&mut a_v, &b_e);
         let sum = a_v;
-        let fft_sum: [f32; N] = super::fft(&sum);
+        let fft_sum: [f32; N] = engine.fft(&sum);
 
         //Sum of FFT
-        let mut a_fft_v: [f32; N] = super::fft(&v).map(|v| ALPHA * v);
-        let b_fft_e: [f32; N] = super::fft(&e).map(|v| BETA * v);
+        let mut a_fft_v: [f32; N] = engine.fft(&v).map(|v| ALPHA * v);
+        let b_fft_e: [f32; N] = engine.fft(&e).map(|v| BETA * v);
         sum_v(&mut a_fft_v, &b_fft_e);
         let sum_fft = a_fft_v;
 
@@ -68,17 +58,19 @@ mod test {
 
     #[test]
     fn unit_impulse_holds() {
+        let engine = test_engine();
         let impulse = generate_impulse::<N, 0>();
-        let fft_impulse: [f32; N] = super::fft(&impulse);
+        let fft_impulse: [f32; N] = engine.fft(&impulse);
         array_assert_eq(generate::<N>(|_| 1.0f32), fft_impulse);
     }
 
     #[test]
     fn time_shift_holds() {
+        let engine = test_engine();
         let a = generate(|idx| f32::cos((idx as f32) / 10.0));
         let b = generate(|idx| f32::cos(((idx + 1) as f32) / 10.0));
-        let fft_a: [f32; N] = super::fft(&a);
-        let fft_b: [f32; N] = super::fft(&b);
+        let fft_a: [f32; N] = engine.fft(&a);
+        let fft_b: [f32; N] = engine.fft(&b);
         assert_eq!(fft_a, fft_b);
         array_assert_eq(fft_a, fft_b);
     }

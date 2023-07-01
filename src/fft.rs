@@ -1,19 +1,54 @@
 use core::marker::PhantomData;
 
-#[allow(unused_imports)]
-use micromath::F32Ext;
+use self::implementations::cooley::Cooley;
 
-#[allow(clippy::approx_constant)]
-#[allow(clippy::excessive_precision)]
-pub const PI: f32 = 3.141592653589793f32;
+pub mod implementations;
+pub mod allocators;
 
-pub mod array;
+pub trait Allocator<T, const N: usize> {
+    type Element: AsMut<[T]> + AsRef<[T]> + Sized;
+    fn allocate() -> Self::Element;
+}
 
-#[cfg(feature = "alloc")]
-pub mod arc_array;
+pub trait Implementation<T, const N: usize, A>
+    where A : Allocator<T, N> {
+    fn fft(v: &[T; N]) -> A::Element;
+}
 
-pub struct Cooley;
+pub struct Engine<T, const N: usize, I, A>
+    where A : Allocator<T, N>,
+          I : Implementation<T, N, A>,
+          T : Copy {
+    impl_marker: PhantomData<I>,
+    allocator_marker: PhantomData<A>,
+    element_marker: PhantomData<T>
+}
 
-struct FftEngine<Implementation> {
-    marker: PhantomData<Implementation>,
+type DefaultImpl = Cooley;
+type DefaultAllocator = allocators::array::ArrayAllocator;
+impl<const N: usize> Engine<f32, N, DefaultImpl, DefaultAllocator> {
+    pub fn default() -> Engine<f32, N, DefaultImpl, DefaultAllocator> {
+        Engine {
+            impl_marker: PhantomData,
+            allocator_marker: PhantomData,
+            element_marker: PhantomData
+        }
+    }
+}
+
+impl<T, const N: usize, I, A> Engine<T, N, I, A>
+    where A : Allocator<T, N>,
+        I : Implementation<T, N, A>,
+        T : Copy {
+    pub fn new() -> Engine<T, N, I, A> {
+        Engine {
+            impl_marker: PhantomData,
+            allocator_marker: PhantomData,
+            element_marker: PhantomData
+        }
+    }
+
+    pub fn fft(&self, v: &[T; N]) -> <A as Allocator<T, N>>::Element {
+        <I as Implementation<T, N, A>>::fft(v)
+    }
 }
