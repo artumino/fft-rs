@@ -1,13 +1,11 @@
-use core::f32::consts::PI;
-
+use crate::fft::implementations::CooleyTukey;
 use crate::fft::{Allocator, Implementation};
+use core::f32::consts::PI;
 
 #[allow(unused_imports)]
 use micromath::F32Ext;
 
-pub struct Cooley;
-
-impl<const N: usize, A> Implementation<f32, N, A> for Cooley
+impl<const N: usize, A> Implementation<f32, N, A> for CooleyTukey
 where
     A: Allocator<f32, N>,
 {

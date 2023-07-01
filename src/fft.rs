@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use self::implementations::cooley::Cooley;
+use self::implementations::CooleyTukey;
 
 pub mod allocators;
 pub mod implementations;
@@ -28,7 +28,7 @@ where
     element_marker: PhantomData<T>,
 }
 
-type DefaultImpl = Cooley;
+type DefaultImpl = CooleyTukey;
 
 #[cfg(feature = "alloc")]
 type DefaultAllocator = allocators::boxed::BoxedAllocator;
@@ -71,8 +71,8 @@ where
 mod test {
     use std::fmt::Debug;
 
-    use std::sync::Arc;
     use approx::assert_relative_eq;
+    use std::sync::Arc;
     const ALPHA: f32 = 0.5;
     const BETA: f32 = 0.75;
     const N: usize = 32;
