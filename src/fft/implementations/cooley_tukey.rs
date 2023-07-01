@@ -1,15 +1,16 @@
 use crate::fft::implementations::CooleyTukey;
 use crate::fft::{Allocator, Implementation};
-use core::f32::consts::PI;
+use core::ops::{Add, Mul, Sub};
 
 #[allow(unused_imports)]
 use micromath::F32Ext;
 
-impl<const N: usize, A> Implementation<f32, N, A> for CooleyTukey
+impl<T, const N: usize, A> Implementation<T, N, A> for CooleyTukey
 where
-    A: Allocator<f32, N>,
+    A: Allocator<T, N>,
+    T: Copy + Mul<f32, Output = T> + Add<Output = T> + Sub<Output = T>,
 {
-    fn fft(v: &[f32; N]) -> A::Element {
+    fn fft(v: &[T; N]) -> A::Element {
         let h = N >> 1;
         let (mut vec1, mut vec2) = (A::allocate(), A::allocate());
         let (mut old, mut new) = (vec1.as_mut(), vec2.as_mut());
@@ -24,9 +25,9 @@ where
             for i in 0..stride {
                 let mut k = 0;
                 while k < N {
-                    omega = (PI * (k as f32) / f_n).exp();
-                    new[i + (k >> 1)] = old[i + k] + omega * old[i + k + stride];
-                    new[i + (k >> 1) + h] = old[i + k] - omega * old[i + k + stride];
+                    omega = (core::f32::consts::PI * (k as f32) / f_n).exp();
+                    new[i + (k >> 1)] = old[i + k] + old[i + k + stride] * omega;
+                    new[i + (k >> 1) + h] = old[i + k] - old[i + k + stride] * omega;
                     k += 2 * stride;
                 }
             }
