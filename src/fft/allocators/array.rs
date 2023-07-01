@@ -17,7 +17,7 @@ mod test {
 
     use approx::assert_relative_eq;
 
-    use crate::fft::{implementations::cooley::Cooley, allocators::array::ArrayAllocator};
+    use crate::fft::{allocators::array::ArrayAllocator, implementations::cooley::Cooley};
     const ALPHA: f32 = 0.5;
     const BETA: f32 = 0.75;
     const N: usize = 32;

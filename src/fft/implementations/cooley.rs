@@ -1,6 +1,6 @@
 use core::f32::consts::PI;
 
-use crate::fft::{Implementation, Allocator};
+use crate::fft::{Allocator, Implementation};
 
 #[allow(unused_imports)]
 use micromath::F32Ext;
@@ -8,7 +8,9 @@ use micromath::F32Ext;
 pub struct Cooley;
 
 impl<const N: usize, A> Implementation<f32, N, A> for Cooley
-    where A : Allocator<f32, N> {
+where
+    A: Allocator<f32, N>,
+{
     fn fft(v: &[f32; N]) -> A::Element {
         let h = N >> 1;
         let (mut vec1, mut vec2) = (A::allocate(), A::allocate());
@@ -32,9 +34,9 @@ impl<const N: usize, A> Implementation<f32, N, A> for Cooley
             swapped = !swapped;
             sublen <<= 1;
         }
-        
+
         if swapped {
-            old.copy_from_slice(&new)
+            old.copy_from_slice(new)
         }
 
         vec1
