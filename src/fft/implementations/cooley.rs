@@ -24,10 +24,12 @@ where
         while sublen < N {
             stride >>= 1;
             for i in 0..stride {
-                for k in (0..N).step_by(2 * stride) {
+                let mut k = 0;
+                while k < N {
                     omega = (PI * (k as f32) / f_n).exp();
                     new[i + (k >> 1)] = old[i + k] + omega * old[i + k + stride];
                     new[i + (k >> 1) + h] = old[i + k] - omega * old[i + k + stride];
+                    k += 2 * stride;
                 }
             }
             (old, new) = (new, old);
@@ -38,7 +40,7 @@ where
         if swapped {
             return vec2;
         }
-         
+
         vec1
     }
 }
