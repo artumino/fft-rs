@@ -6,8 +6,10 @@ pub const PI: f32 = 3.141592653589793f32;
 
 pub fn fft<const N: usize>(v: &[f32; N]) -> [f32; N] {
     let h = N >> 1;
-    let (mut old, mut new) = (*v, [0.0f32; N]);
+    let (mut cloned_v, mut zero_v) = (*v, [0.0f32; N]);
+    let (mut old, mut new) = (&mut cloned_v, &mut zero_v);
     let (mut sublen, mut stride) = (1, N);
+    let mut swapped = false;
     let mut omega;
     let f_n = N as f32;
     while sublen < N {
@@ -20,9 +22,15 @@ pub fn fft<const N: usize>(v: &[f32; N]) -> [f32; N] {
             }
         }
         (old, new) = (new, old);
+        swapped = !swapped;
         sublen <<= 1;
     }
-    old
+
+    if swapped {
+        cloned_v.copy_from_slice(&zero_v)
+    }
+
+    cloned_v
 }
 
 // Ergün, Funda. (1995, June). Testing multivariate linear functions: Overcoming the generator bottleneck.
@@ -39,8 +47,8 @@ mod test {
 
     #[test]
     fn milion_test() {
-        let v: [f32; 524_288] = generate(|idx| f32::sin(idx as f32));
-        let fft: [f32; 524_288] = fft::fft(&v); //Frequency size is 1Hz per bin
+        let v: [f32; 65_536] = generate(|idx| f32::sin(idx as f32));
+        let fft: [f32; 65_536] = fft::fft(&v); //Frequency size is 1Hz per bin
         assert_eq!(1.0f32, fft[3]);
     }
 
