@@ -2,9 +2,9 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use random::Source;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let vec_44k: [f32; 44100] = generate();
-    c.bench_function("fft array 44100", |b| {
-        b.iter(|| fft::fft::fft(black_box(&vec_44k)))
+    let vec_65k: [f32; 65_536] = generate();
+    c.bench_function("fft array 65536", |b| {
+        b.iter(|| fft::fft::fft(black_box(&vec_65k)))
     });
 }
 
