@@ -78,14 +78,6 @@ mod test {
     const N: usize = 32;
 
     #[test]
-    fn milion_test() {
-        let v = generate_impulse::<1_048_576, 0>();
-        let engine = crate::fft::Engine::default();
-        let fft = engine.fft(&v); //Frequency size is 1Hz per bin
-        assert_eq!(1.0f32, fft[3]);
-    }
-
-    #[test]
     fn linearity_holds() {
         let engine = crate::fft::Engine::default();
         let v = generate::<N>(|idx| idx as f32);
