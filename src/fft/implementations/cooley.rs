@@ -36,9 +36,9 @@ where
         }
 
         if swapped {
-            old.copy_from_slice(new)
+            return vec2;
         }
-
+         
         vec1
     }
 }
