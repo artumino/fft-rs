@@ -74,7 +74,7 @@ mod test {
         ops::{AddAssign, MulAssign},
     };
 
-    use approx::assert_relative_eq;
+    use approx::{assert_relative_eq, RelativeEq, AbsDiffEq};
     use num_complex::Complex32;
     use std::sync::Arc;
 
@@ -106,7 +106,7 @@ mod test {
         sum_v(&mut a_fft_v, engine.fft(&e).iter_mut().map(|x| *x * BETA));
         let sum_fft = a_fft_v;
 
-        array_assert_eq(fft_sum.as_ref(), sum_fft.as_ref());
+        array_assert_eq(fft_sum.as_ref(), sum_fft.as_ref(), 1e-1);
     }
 
     #[test]
@@ -117,6 +117,7 @@ mod test {
         array_assert_eq(
             generate::<N, Complex32>(|_| Complex32::new(1.0f32, 0.0f32)).as_slice(),
             fft_impulse.as_ref(),
+            1e-1,
         );
     }
 
@@ -131,7 +132,7 @@ mod test {
         let fft_a = engine.fft(a.as_ref());
         let fft_b = engine.fft(b.as_ref());
         assert_eq!(fft_a, fft_b);
-        array_assert_eq(fft_a.as_ref(), fft_b.as_ref());
+        array_assert_eq(fft_a.as_ref(), fft_b.as_ref(), 1e-1);
     }
 
     fn sum_v<T>(a: &mut [T], b: impl Iterator<Item = T>)
@@ -177,10 +178,11 @@ mod test {
         })
     }
 
-    fn array_assert_eq(a: &[Complex32], b: &[Complex32]) {
+    fn array_assert_eq<T>(a: &[T], b: &[T], epsilon: <T as AbsDiffEq>::Epsilon)
+        where T : RelativeEq + Debug,
+              <T as AbsDiffEq>::Epsilon : Copy {
         assert_eq!(a.len(), b.len());
-        (0..a.len()).for_each(|idx| assert_relative_eq!(a[idx].re, b[idx].re, epsilon = 0.1f32));
-        (0..a.len()).for_each(|idx| assert_relative_eq!(a[idx].im, b[idx].im, epsilon = 0.1f32));
+        (0..a.len()).for_each(|idx| assert_relative_eq!(a[idx], b[idx], epsilon = epsilon));
     }
 
     trait Impulse {

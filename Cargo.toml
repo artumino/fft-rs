@@ -14,7 +14,7 @@ default = ["alloc"]
 alloc = []
 
 [dev-dependencies]
-approx = "0.5.1"
+approx = { version = "0.5.1", features = ["num-complex"] }
 criterion = "0.5.1"
 random = "0.14.0"
 num-complex = { version = "0.4.3", default-features = false }
