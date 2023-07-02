@@ -1,4 +1,4 @@
-use crate::fft::Allocator;
+use crate::Allocator;
 
 pub struct ArrayAllocator;
 impl<T, const N: usize> Allocator<T, N> for ArrayAllocator

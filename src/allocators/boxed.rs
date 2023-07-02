@@ -1,4 +1,4 @@
-use crate::fft::Allocator;
+use crate::Allocator;
 use alloc::boxed::Box;
 
 pub struct BoxedAllocator;

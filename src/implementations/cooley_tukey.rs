@@ -1,5 +1,5 @@
-use crate::fft::implementations::CooleyTukey;
-use crate::fft::{Allocator, Implementation};
+use crate::implementations::CooleyTukey;
+use crate::{Allocator, Implementation};
 
 use core::ops::{Add, Mul, Sub};
 

@@ -4,7 +4,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, BenchmarkId,
     Criterion,
 };
-use fft::fft::{
+use fft::{
     allocators::{array::ArrayAllocator, boxed::BoxedAllocator},
     implementations::CooleyTukey,
     Allocator, Implementation,
@@ -44,7 +44,7 @@ where
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();
     let vec = generate_f32::<N>();
-    let boxed_engine = fft::fft::Engine::<f32, N, I, A>::new();
+    let boxed_engine = fft::Engine::<f32, N, I, A>::new();
     c.bench_with_input(
         BenchmarkId::new(format!("{strategy_name}_{allocator_name}").as_str(), N),
         &N,
@@ -60,7 +60,7 @@ where
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();
     let vec = generate_c32::<N>();
-    let boxed_engine = fft::fft::Engine::<Complex32, N, I, A>::new();
+    let boxed_engine = fft::Engine::<Complex32, N, I, A>::new();
     c.bench_with_input(
         BenchmarkId::new(format!("{strategy_name}_{allocator_name}").as_str(), N),
         &N,
