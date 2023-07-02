@@ -1,14 +1,20 @@
 use crate::fft::implementations::CooleyTukey;
 use crate::fft::{Allocator, Implementation};
+
 use core::ops::{Add, Mul, Sub};
 
 #[allow(unused_imports)]
 use micromath::F32Ext;
+use num_traits::FromPrimitive;
 
 impl<T, const N: usize, A> Implementation<T, N, A> for CooleyTukey
 where
     A: Allocator<T, N>,
-    T: Copy + Mul<f32, Output = T> + Add<Output = T> + Sub<Output = T>,
+    T: Copy
+        + Add<Output = T>
+        + Sub<Output = T>
+        + OmegaCalculator<T>
+        + Mul<<T as OmegaCalculator<T>>::TMul, Output = T>,
 {
     fn fft(v: &[T; N]) -> A::Element {
         let h = N >> 1;
@@ -18,14 +24,13 @@ where
 
         let (mut sublen, mut stride) = (1, N);
         let mut swapped = false;
-        let mut omega;
-        let f_n = N as f32;
+        let f_n = FromPrimitive::from_usize(N).unwrap();
         while sublen < N {
             stride >>= 1;
             for i in 0..stride {
                 let mut k = 0;
                 while k < N {
-                    omega = (core::f32::consts::PI * (k as f32) / f_n).exp();
+                    let omega = T::calculate_omega(k, f_n);
                     new[i + (k >> 1)] = old[i + k] + old[i + k + stride] * omega;
                     new[i + (k >> 1) + h] = old[i + k] - old[i + k + stride] * omega;
                     k += 2 * stride;
@@ -41,5 +46,23 @@ where
         }
 
         vec1
+    }
+}
+
+pub trait OmegaCalculator<T>
+where
+    T: Copy + Mul<Self::TMul, Output = T>,
+{
+    type TMul: FromPrimitive + Copy;
+    fn calculate_omega(k: usize, n: Self::TMul) -> Self::TMul;
+}
+
+impl<T> OmegaCalculator<T> for T
+where
+    T: Copy + Mul<f32, Output = T>,
+{
+    type TMul = f32;
+    fn calculate_omega(k: usize, n: f32) -> f32 {
+        (core::f32::consts::PI * (k as f32) / n).exp()
     }
 }

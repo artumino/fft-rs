@@ -69,19 +69,29 @@ where
 // In Proc. Twenty-Seventh Ann. ACM Symp. Theory of Computing. (p. 407–416).
 #[cfg(test)]
 mod test {
-    use std::fmt::Debug;
+    use core::{
+        fmt::Debug,
+        ops::{AddAssign, MulAssign},
+    };
 
     use approx::assert_relative_eq;
+    use num_complex::Complex32;
     use std::sync::Arc;
+
+    use super::{allocators::boxed::BoxedAllocator, implementations::CooleyTukey, Engine};
     const ALPHA: f32 = 0.5;
     const BETA: f32 = 0.75;
     const N: usize = 32;
 
+    fn test_engine<const N: usize>() -> Engine<Complex32, N, CooleyTukey, BoxedAllocator> {
+        Engine::new()
+    }
+
     #[test]
     fn linearity_holds() {
-        let engine = crate::fft::Engine::default();
-        let v = generate::<N>(|idx| idx as f32);
-        let e = generate::<N>(|idx| (idx + 1usize) as f32);
+        let engine = test_engine();
+        let v = generate::<N, Complex32>(|idx| Complex32::new(idx as f32, 0.0f32));
+        let e = generate::<N, Complex32>(|idx| Complex32::new((idx + 1usize) as f32, 0.0f32));
 
         // FFT of sum
         let mut a_v = v.map(|v| v * ALPHA);
@@ -101,49 +111,97 @@ mod test {
 
     #[test]
     fn unit_impulse_holds() {
-        let engine = crate::fft::Engine::default();
-        let impulse = generate_impulse::<N, 0>();
+        let engine = test_engine();
+        let impulse = generate_impulse::<N, 0, Complex32>();
         let fft_impulse = engine.fft(&impulse);
-        array_assert_eq(generate::<N>(|_| 1.0f32).as_slice(), fft_impulse.as_ref());
+        array_assert_eq(
+            generate::<N, Complex32>(|_| Complex32::new(1.0f32, 0.0f32)).as_slice(),
+            fft_impulse.as_ref(),
+        );
     }
 
     #[test]
     fn time_shift_holds() {
-        let engine = crate::fft::Engine::default();
-        let a = generate::<N>(|idx| f32::cos((idx as f32) / 10.0));
-        let b = generate::<N>(|idx| f32::cos(((idx + 1) as f32) / 10.0));
+        let engine = test_engine();
+        let a =
+            generate::<N, Complex32>(|idx| Complex32::new(f32::sin((idx as f32) / 10.0), 0.0f32));
+        let b = generate::<N, Complex32>(|idx| {
+            Complex32::new(f32::sin(((idx + 1) as f32) / 10.0), 0.0f32)
+        });
         let fft_a = engine.fft(a.as_ref());
         let fft_b = engine.fft(b.as_ref());
         assert_eq!(fft_a, fft_b);
         array_assert_eq(fft_a.as_ref(), fft_b.as_ref());
     }
 
-    fn sum_v(a: &mut [f32], b: impl Iterator<Item = f32>) {
+    fn sum_v<T>(a: &mut [T], b: impl Iterator<Item = T>)
+    where
+        T: AddAssign<T> + Copy,
+    {
         for (idx, val) in b.enumerate() {
             a[idx] += val;
         }
     }
 
-    fn mul_v(a: &mut [f32], alpha: f32) {
+    fn mul_v<T, TMul>(a: &mut [T], alpha: TMul)
+    where
+        T: MulAssign<TMul> + Copy,
+        TMul: Copy,
+    {
         for val in a {
             *val *= alpha;
         }
     }
 
-    fn generate<const S: usize>(generator: fn(usize) -> f32) -> Arc<[f32; S]> {
-        let mut v: Box<[f32; S]> = vec![0.0f32; S].into_boxed_slice().try_into().unwrap();
+    fn generate<const S: usize, T>(generator: fn(usize) -> T) -> Arc<[T; S]>
+    where
+        T: Default + Copy + Debug,
+    {
+        let mut v: Box<[T; S]> = vec![T::default(); S].into_boxed_slice().try_into().unwrap();
         for (idx, val) in v.iter_mut().enumerate() {
             *val = generator(idx);
         }
         v.into()
     }
 
-    fn generate_impulse<const S: usize, const INSTANT: usize>() -> Arc<[f32; S]> {
-        generate(|idx| if idx == INSTANT { 1.0f32 } else { 0.0f32 })
+    fn generate_impulse<const S: usize, const INSTANT: usize, T>() -> Arc<[T; S]>
+    where
+        T: Default + Copy + Debug + Impulse + Zeroed,
+    {
+        generate(|idx| {
+            if idx == INSTANT {
+                T::impulse()
+            } else {
+                T::zeroed()
+            }
+        })
     }
 
-    fn array_assert_eq<A: approx::RelativeEq<A, Epsilon = f32> + Debug>(a: &[A], b: &[A]) {
+    fn array_assert_eq(a: &[Complex32], b: &[Complex32]) {
         assert_eq!(a.len(), b.len());
-        (0..a.len()).for_each(|idx| assert_relative_eq!(a[idx], b[idx], epsilon = 0.1f32))
+        (0..a.len()).for_each(|idx| assert_relative_eq!(a[idx].re, b[idx].re, epsilon = 0.1f32));
+        (0..a.len()).for_each(|idx| assert_relative_eq!(a[idx].im, b[idx].im, epsilon = 0.1f32));
+    }
+
+    trait Impulse {
+        fn impulse() -> Self;
+    }
+
+    trait Zeroed {
+        fn zeroed() -> Self;
+    }
+
+    impl Impulse for Complex32 {
+        #[inline]
+        fn impulse() -> Self {
+            Complex32::new(1.0f32, 0.0f32)
+        }
+    }
+
+    impl Zeroed for Complex32 {
+        #[inline]
+        fn zeroed() -> Self {
+            Complex32::new(0.0f32, 0.0f32)
+        }
     }
 }
