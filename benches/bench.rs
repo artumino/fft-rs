@@ -39,7 +39,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 fn run_bench_f32<const N: usize, I, A>(c: &mut BenchmarkGroup<'_, WallTime>)
 where
     I: Implementation<f32, N, A>,
-    A: Allocator<f32, N>
+    A: Allocator<f32, N>,
 {
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();
@@ -56,7 +56,7 @@ where
 fn run_bench_c32<const N: usize, I, A>(c: &mut BenchmarkGroup<'_, WallTime>)
 where
     I: Implementation<Complex32, N, A>,
-    A: Allocator<Complex32, N>
+    A: Allocator<Complex32, N>,
 {
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();

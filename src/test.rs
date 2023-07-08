@@ -3,38 +3,46 @@
 
 use core::{
     fmt::Debug,
-    ops::{AddAssign, MulAssign, Add, Sub, Mul}, marker::PhantomData,
+    marker::PhantomData,
+    ops::{Add, AddAssign, Mul, MulAssign, Sub},
 };
 
 use approx::{assert_relative_eq, AbsDiffEq, RelativeEq};
 use num_complex::Complex32;
 use std::sync::Arc;
 
-use crate::{implementations::{CooleyTukey, cooley_tukey::OmegaCalculator}, Engine, Allocator, Implementation, allocators::boxed::BoxedAllocator};
+use crate::{
+    allocators::boxed::BoxedAllocator,
+    implementations::{cooley_tukey::OmegaCalculator, CooleyTukey},
+    Allocator, Engine, Implementation,
+};
 const ALPHA: f32 = 0.5;
 const BETA: f32 = 0.75;
 const N: usize = 32;
 
 pub trait EngineTest<T: Copy, const N: usize, A, I>
-    where A: Allocator<T, N>,
-    I: Implementation<T, N, A>
+where
+    A: Allocator<T, N>,
+    I: Implementation<T, N, A>,
 {
     fn engine() -> Engine<T, N, I, A>;
     fn allocate() -> A::Element;
 }
 
-pub struct TestFixture<T: Copy, const N: usize, A: Allocator<T, N>>
-{
+pub struct TestFixture<T: Copy, const N: usize, A: Allocator<T, N>> {
     element_marker: PhantomData<T>,
-    allocator_marker: PhantomData<A>
+    allocator_marker: PhantomData<A>,
 }
 
-impl<T, const N: usize, A: Allocator<T, N>> EngineTest<T, N, A, CooleyTukey> for TestFixture<T, N, A>
-    where T : Copy
-    + Add<Output = T>
-    + Sub<Output = T>
-    + OmegaCalculator<T>
-    + Mul<<T as OmegaCalculator<T>>::TMul, Output = T> {
+impl<T, const N: usize, A: Allocator<T, N>> EngineTest<T, N, A, CooleyTukey>
+    for TestFixture<T, N, A>
+where
+    T: Copy
+        + Add<Output = T>
+        + Sub<Output = T>
+        + OmegaCalculator<T>
+        + Mul<<T as OmegaCalculator<T>>::TMul, Output = T>,
+{
     fn engine() -> Engine<T, N, CooleyTukey, A> {
         Engine::new()
     }
@@ -44,7 +52,7 @@ impl<T, const N: usize, A: Allocator<T, N>> EngineTest<T, N, A, CooleyTukey> for
     }
 }
 
-type ComplexTestFixture = TestFixture::<Complex32, 32, BoxedAllocator>;
+type ComplexTestFixture = TestFixture<Complex32, 32, BoxedAllocator>;
 #[test]
 fn linearity_holds() {
     let engine = ComplexTestFixture::engine();
