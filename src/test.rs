@@ -3,25 +3,51 @@
 
 use core::{
     fmt::Debug,
-    ops::{AddAssign, MulAssign},
+    ops::{AddAssign, MulAssign, Add, Sub, Mul}, marker::PhantomData,
 };
 
 use approx::{assert_relative_eq, AbsDiffEq, RelativeEq};
 use num_complex::Complex32;
 use std::sync::Arc;
 
-use crate::{allocators::boxed::BoxedAllocator, implementations::CooleyTukey, Engine};
+use crate::{implementations::{CooleyTukey, cooley_tukey::OmegaCalculator}, Engine, Allocator, Implementation, allocators::boxed::BoxedAllocator};
 const ALPHA: f32 = 0.5;
 const BETA: f32 = 0.75;
 const N: usize = 32;
 
-fn test_engine<const N: usize>() -> Engine<Complex32, N, CooleyTukey, BoxedAllocator> {
-    Engine::new()
+pub trait EngineTest<T: Copy, const N: usize, A, I>
+    where A: Allocator<T, N>,
+    I: Implementation<T, N, A>
+{
+    fn engine() -> Engine<T, N, I, A>;
+    fn allocate() -> A::Element;
 }
 
+pub struct TestFixture<T: Copy, const N: usize, A: Allocator<T, N>>
+{
+    element_marker: PhantomData<T>,
+    allocator_marker: PhantomData<A>
+}
+
+impl<T, const N: usize, A: Allocator<T, N>> EngineTest<T, N, A, CooleyTukey> for TestFixture<T, N, A>
+    where T : Copy
+    + Add<Output = T>
+    + Sub<Output = T>
+    + OmegaCalculator<T>
+    + Mul<<T as OmegaCalculator<T>>::TMul, Output = T> {
+    fn engine() -> Engine<T, N, CooleyTukey, A> {
+        Engine::new()
+    }
+
+    fn allocate() -> A::Element {
+        A::allocate()
+    }
+}
+
+type ComplexTestFixture = TestFixture::<Complex32, 32, BoxedAllocator>;
 #[test]
 fn linearity_holds() {
-    let engine = test_engine();
+    let engine = ComplexTestFixture::engine();
     let v = generate::<N, Complex32>(|idx| Complex32::new(idx as f32, 0.0f32));
     let e = generate::<N, Complex32>(|idx| Complex32::new((idx + 1usize) as f32, 0.0f32));
 
@@ -30,14 +56,14 @@ fn linearity_holds() {
     let b_e = e.map(|v| v * BETA);
     sum_v(&mut a_v, b_e.into_iter());
     let sum = a_v;
-    let mut fft_sum = engine.allocate();
+    let mut fft_sum = ComplexTestFixture::allocate();
     engine.fft(&sum, &mut fft_sum);
 
     //Sum of FFT
-    let mut a_fft_v = engine.allocate();
+    let mut a_fft_v = ComplexTestFixture::allocate();
     engine.fft(&v, &mut a_fft_v);
     mul_v(&mut a_fft_v, ALPHA);
-    let mut e_fft_v = engine.allocate();
+    let mut e_fft_v = ComplexTestFixture::allocate();
     engine.fft(&e, &mut e_fft_v);
     sum_v(&mut a_fft_v, e_fft_v.iter_mut().map(|x| *x * BETA));
     let sum_fft = a_fft_v;
@@ -47,9 +73,9 @@ fn linearity_holds() {
 
 #[test]
 fn unit_impulse_holds() {
-    let engine = test_engine();
+    let engine = ComplexTestFixture::engine();
     let impulse = generate_impulse::<N, 0, Complex32>();
-    let mut fft_impulse = engine.allocate();
+    let mut fft_impulse = ComplexTestFixture::allocate();
     engine.fft(&impulse, &mut fft_impulse);
     array_assert_eq(
         generate::<N, Complex32>(|_| Complex32::new(1.0f32, 0.0f32)).as_slice(),
@@ -60,13 +86,13 @@ fn unit_impulse_holds() {
 
 #[test]
 fn time_shift_holds() {
-    let engine = test_engine();
+    let engine = ComplexTestFixture::engine();
     let a = generate::<N, Complex32>(|idx| Complex32::new(f32::sin((idx as f32) / 10.0), 0.0f32));
     let b =
         generate::<N, Complex32>(|idx| Complex32::new(f32::sin(((idx + 1) as f32) / 10.0), 0.0f32));
-    let mut fft_a = engine.allocate();
+    let mut fft_a = ComplexTestFixture::allocate();
     engine.fft(a.as_ref(), &mut fft_a);
-    let mut fft_b = engine.allocate();
+    let mut fft_b = ComplexTestFixture::allocate();
     engine.fft(b.as_ref(), &mut fft_b);
     assert_eq!(fft_a, fft_b);
     array_assert_eq(fft_a.as_ref(), fft_b.as_ref(), 1e-1);

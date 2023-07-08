@@ -72,8 +72,4 @@ where
     pub fn fft(&self, v: &[T; N], spectrum: &mut <A as Allocator<T, N>>::Element) {
         <I as Implementation<T, N, A>>::fft(v, spectrum)
     }
-
-    pub fn allocate(&self) -> <A as Allocator<T, N>>::Element {
-        <A as Allocator<T, N>>::allocate()
-    }
 }
