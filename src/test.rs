@@ -30,12 +30,16 @@ fn linearity_holds() {
     let b_e = e.map(|v| v * BETA);
     sum_v(&mut a_v, b_e.into_iter());
     let sum = a_v;
-    let fft_sum = engine.fft(&sum);
+    let mut fft_sum = engine.allocate();
+    engine.fft(&sum, &mut fft_sum);
 
     //Sum of FFT
-    let mut a_fft_v = engine.fft(&v);
+    let mut a_fft_v = engine.allocate();
+    engine.fft(&v, &mut a_fft_v);
     mul_v(&mut a_fft_v, ALPHA);
-    sum_v(&mut a_fft_v, engine.fft(&e).iter_mut().map(|x| *x * BETA));
+    let mut e_fft_v = engine.allocate();
+    engine.fft(&e, &mut e_fft_v);
+    sum_v(&mut a_fft_v, e_fft_v.iter_mut().map(|x| *x * BETA));
     let sum_fft = a_fft_v;
 
     array_assert_eq(fft_sum.as_ref(), sum_fft.as_ref(), 1e-1);
@@ -45,7 +49,8 @@ fn linearity_holds() {
 fn unit_impulse_holds() {
     let engine = test_engine();
     let impulse = generate_impulse::<N, 0, Complex32>();
-    let fft_impulse = engine.fft(&impulse);
+    let mut fft_impulse = engine.allocate();
+    engine.fft(&impulse, &mut fft_impulse);
     array_assert_eq(
         generate::<N, Complex32>(|_| Complex32::new(1.0f32, 0.0f32)).as_slice(),
         fft_impulse.as_ref(),
@@ -59,8 +64,10 @@ fn time_shift_holds() {
     let a = generate::<N, Complex32>(|idx| Complex32::new(f32::sin((idx as f32) / 10.0), 0.0f32));
     let b =
         generate::<N, Complex32>(|idx| Complex32::new(f32::sin(((idx + 1) as f32) / 10.0), 0.0f32));
-    let fft_a = engine.fft(a.as_ref());
-    let fft_b = engine.fft(b.as_ref());
+    let mut fft_a = engine.allocate();
+    engine.fft(a.as_ref(), &mut fft_a);
+    let mut fft_b = engine.allocate();
+    engine.fft(b.as_ref(), &mut fft_b);
     assert_eq!(fft_a, fft_b);
     array_assert_eq(fft_a.as_ref(), fft_b.as_ref(), 1e-1);
 }

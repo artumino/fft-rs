@@ -16,10 +16,10 @@ where
         + OmegaCalculator<T>
         + Mul<<T as OmegaCalculator<T>>::TMul, Output = T>,
 {
-    fn fft(v: &[T; N]) -> A::Element {
+    fn fft(v: &[T; N], spectrum: &mut A::Element) {
         let h = N >> 1;
-        let (mut vec1, mut vec2) = (A::allocate(), A::allocate());
-        let (mut old, mut new) = (vec1.as_mut(), vec2.as_mut());
+        let mut swap_buffer = A::allocate();
+        let (mut old, mut new) = (spectrum.as_mut(), swap_buffer.as_mut());
         old.copy_from_slice(v);
 
         let (mut sublen, mut stride) = (1, N);
@@ -42,10 +42,8 @@ where
         }
 
         if swapped {
-            return vec2;
+            old.copy_from_slice(new);
         }
-
-        vec1
     }
 }
 

@@ -23,7 +23,7 @@ pub trait Implementation<T, const N: usize, A>
 where
     A: Allocator<T, N>,
 {
-    fn fft(v: &[T; N]) -> A::Element;
+    fn fft(v: &[T; N], spectrum: &mut A::Element);
 }
 
 pub struct Engine<T, const N: usize, I, A>
@@ -69,7 +69,11 @@ where
         }
     }
 
-    pub fn fft(&self, v: &[T; N]) -> <A as Allocator<T, N>>::Element {
-        <I as Implementation<T, N, A>>::fft(v)
+    pub fn fft(&self, v: &[T; N], spectrum: &mut <A as Allocator<T, N>>::Element) {
+        <I as Implementation<T, N, A>>::fft(v, spectrum)
+    }
+
+    pub fn allocate(&self) -> <A as Allocator<T, N>>::Element {
+        <A as Allocator<T, N>>::allocate()
     }
 }

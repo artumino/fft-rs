@@ -39,32 +39,34 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 fn run_bench_f32<const N: usize, I, A>(c: &mut BenchmarkGroup<'_, WallTime>)
 where
     I: Implementation<f32, N, A>,
-    A: Allocator<f32, N>,
+    A: Allocator<f32, N>
 {
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();
     let vec = generate_f32::<N>();
+    let mut out_spec = A::allocate();
     let boxed_engine = fft::Engine::<f32, N, I, A>::new();
     c.bench_with_input(
         BenchmarkId::new(format!("{strategy_name}_{allocator_name}").as_str(), N),
         &N,
-        |b, _| b.iter(|| boxed_engine.fft(black_box(&vec))),
+        |b, _| b.iter(|| boxed_engine.fft(black_box(&vec), &mut out_spec)),
     );
 }
 
 fn run_bench_c32<const N: usize, I, A>(c: &mut BenchmarkGroup<'_, WallTime>)
 where
     I: Implementation<Complex32, N, A>,
-    A: Allocator<Complex32, N>,
+    A: Allocator<Complex32, N>
 {
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();
     let vec = generate_c32::<N>();
+    let mut out_spec = A::allocate();
     let boxed_engine = fft::Engine::<Complex32, N, I, A>::new();
     c.bench_with_input(
         BenchmarkId::new(format!("{strategy_name}_{allocator_name}").as_str(), N),
         &N,
-        |b, _| b.iter(|| boxed_engine.fft(black_box(&vec))),
+        |b, _| b.iter(|| boxed_engine.fft(black_box(&vec), &mut out_spec)),
     );
 }
 
