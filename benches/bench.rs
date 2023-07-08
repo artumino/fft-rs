@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, ops::Mul};
 
 use criterion::{
     black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, BenchmarkId,
@@ -7,45 +7,47 @@ use criterion::{
 use fft::{
     allocators::{array::ArrayAllocator, boxed::BoxedAllocator},
     implementations::CooleyTukey,
-    Allocator, Implementation,
+    Allocator, Implementation, WindowFunction, windows::Rect,
 };
 use num_complex::Complex32;
 use random::Source;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("FFT<f32>");
-    run_bench_f32::<1_048_576, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_f32::<65_536, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_f32::<1_024, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_f32::<1_024, CooleyTukey, ArrayAllocator>(&mut group);
-    run_bench_f32::<512, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_f32::<512, CooleyTukey, ArrayAllocator>(&mut group);
-    run_bench_f32::<32, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_f32::<32, CooleyTukey, ArrayAllocator>(&mut group);
+    run_bench_f32::<1_048_576, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_f32::<65_536, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_f32::<1_024, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_f32::<1_024, CooleyTukey, Rect, ArrayAllocator>(&mut group);
+    run_bench_f32::<512, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_f32::<512, CooleyTukey, Rect, ArrayAllocator>(&mut group);
+    run_bench_f32::<32, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_f32::<32, CooleyTukey, Rect, ArrayAllocator>(&mut group);
     group.finish();
 
     let mut group = c.benchmark_group("FFT<Complex32>");
-    run_bench_c32::<1_048_576, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_c32::<65_536, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_c32::<1_024, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_c32::<1_024, CooleyTukey, ArrayAllocator>(&mut group);
-    run_bench_c32::<512, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_c32::<512, CooleyTukey, ArrayAllocator>(&mut group);
-    run_bench_c32::<32, CooleyTukey, BoxedAllocator>(&mut group);
-    run_bench_c32::<32, CooleyTukey, ArrayAllocator>(&mut group);
+    run_bench_c32::<1_048_576, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_c32::<65_536, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_c32::<1_024, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_c32::<1_024, CooleyTukey, Rect, ArrayAllocator>(&mut group);
+    run_bench_c32::<512, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_c32::<512, CooleyTukey, Rect, ArrayAllocator>(&mut group);
+    run_bench_c32::<32, CooleyTukey, Rect, BoxedAllocator>(&mut group);
+    run_bench_c32::<32, CooleyTukey, Rect, ArrayAllocator>(&mut group);
     group.finish();
 }
 
-fn run_bench_f32<const N: usize, I, A>(c: &mut BenchmarkGroup<'_, WallTime>)
+fn run_bench_f32<const N: usize, I, W, A>(c: &mut BenchmarkGroup<'_, WallTime>)
 where
-    I: Implementation<f32, N, A>,
+    I: Implementation<f32, N, W, A>,
     A: Allocator<f32, N>,
+    W: WindowFunction<f32>,
+    f32: Mul<W::TMul, Output = f32>
 {
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();
     let vec = generate_f32::<N>();
     let mut out_spec = A::allocate();
-    let boxed_engine = fft::Engine::<f32, N, I, A>::new();
+    let boxed_engine = fft::Engine::<f32, N, I, W, A>::new();
     c.bench_with_input(
         BenchmarkId::new(format!("{strategy_name}_{allocator_name}").as_str(), N),
         &N,
@@ -53,16 +55,18 @@ where
     );
 }
 
-fn run_bench_c32<const N: usize, I, A>(c: &mut BenchmarkGroup<'_, WallTime>)
+fn run_bench_c32<const N: usize, I, W, A>(c: &mut BenchmarkGroup<'_, WallTime>)
 where
-    I: Implementation<Complex32, N, A>,
+    I: Implementation<Complex32, N, W, A>,
     A: Allocator<Complex32, N>,
+    W: WindowFunction<Complex32>,
+    Complex32: Mul<W::TMul, Output = Complex32>
 {
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();
     let vec = generate_c32::<N>();
     let mut out_spec = A::allocate();
-    let boxed_engine = fft::Engine::<Complex32, N, I, A>::new();
+    let boxed_engine = fft::Engine::<Complex32, N, I, W, A>::new();
     c.bench_with_input(
         BenchmarkId::new(format!("{strategy_name}_{allocator_name}").as_str(), N),
         &N,

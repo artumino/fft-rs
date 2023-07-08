@@ -14,18 +14,20 @@ use std::sync::Arc;
 use crate::{
     allocators::boxed::BoxedAllocator,
     implementations::{cooley_tukey::OmegaCalculator, CooleyTukey},
-    Allocator, Engine, Implementation,
+    Allocator, Engine, Implementation, windows::Rect, WindowFunction,
 };
 const ALPHA: f32 = 0.5;
 const BETA: f32 = 0.75;
 const N: usize = 32;
 
-pub trait EngineTest<T: Copy, const N: usize, A, I>
+pub trait EngineTest<T: Copy, const N: usize, A, W, I>
 where
     A: Allocator<T, N>,
-    I: Implementation<T, N, A>,
+    I: Implementation<T, N, W, A>,
+    W: WindowFunction<T>,
+    T: Copy + Mul<W::TMul, Output = T>,
 {
-    fn engine() -> Engine<T, N, I, A>;
+    fn engine() -> Engine<T, N, I, W, A>;
     fn allocate() -> A::Element;
 }
 
@@ -34,16 +36,16 @@ pub struct TestFixture<T: Copy, const N: usize, A: Allocator<T, N>> {
     allocator_marker: PhantomData<A>,
 }
 
-impl<T, const N: usize, A: Allocator<T, N>> EngineTest<T, N, A, CooleyTukey>
+impl<T, const N: usize, A: Allocator<T, N>> EngineTest<T, N, A, Rect, CooleyTukey>
     for TestFixture<T, N, A>
 where
     T: Copy
         + Add<Output = T>
         + Sub<Output = T>
-        + OmegaCalculator<T>
-        + Mul<<T as OmegaCalculator<T>>::TMul, Output = T>,
+        + OmegaCalculator<T, TMul = f32>
+        + Mul<f32, Output = T>,
 {
-    fn engine() -> Engine<T, N, CooleyTukey, A> {
+    fn engine() -> Engine<T, N, CooleyTukey, Rect, A> {
         Engine::new()
     }
 
