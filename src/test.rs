@@ -14,7 +14,8 @@ use std::sync::Arc;
 use crate::{
     allocators::boxed::BoxedAllocator,
     implementations::{cooley_tukey::OmegaCalculator, CooleyTukey},
-    Allocator, Engine, Implementation, windows::Rect, WindowFunction,
+    windows::Rect,
+    Allocator, Engine, Implementation, WindowFunction,
 };
 const ALPHA: f32 = 0.5;
 const BETA: f32 = 0.75;
@@ -23,9 +24,9 @@ const N: usize = 32;
 pub trait EngineTest<T: Copy, const N: usize, A, W, I>
 where
     A: Allocator<T, N>,
-    I: Implementation<T, N, W, A>,
+    I: Implementation<T, N, A>,
     W: WindowFunction<T>,
-    T: Copy + Mul<W::TMul, Output = T>,
+    T: Copy,
 {
     fn engine() -> Engine<T, N, I, W, A>;
     fn allocate() -> A::Element;

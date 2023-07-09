@@ -7,9 +7,8 @@ extern crate alloc;
 #[cfg(test)]
 mod test;
 
-use core::{marker::PhantomData, ops::Mul};
+use core::marker::PhantomData;
 
-use num_traits::FromPrimitive;
 use windows::Rect;
 
 use self::implementations::CooleyTukey;
@@ -20,10 +19,12 @@ pub mod windows;
 
 pub trait WindowFunction<T>
 where
-    T: Copy + Mul<Self::TMul, Output = T>,
+    T: Copy,
 {
-    type TMul: FromPrimitive + Copy;
-    fn calculate(i: Self::TMul, n: Self::TMul) -> Self::TMul;
+    type ItemMapper<'a>: Iterator<Item = T>
+    where
+        T: 'a;
+    fn windowed<const N: usize>(v: &[T]) -> Self::ItemMapper<'_>;
 }
 
 pub trait Allocator<T, const N: usize> {
@@ -31,21 +32,20 @@ pub trait Allocator<T, const N: usize> {
     fn allocate() -> Self::Element;
 }
 
-pub trait Implementation<T, const N: usize, W, A>
+pub trait Implementation<T, const N: usize, A>
 where
     A: Allocator<T, N>,
-    W: WindowFunction<T>,
-    T: Copy + Mul<W::TMul, Output = T>,
+    T: Copy,
 {
-    fn fft(v: &[T; N], spectrum: &mut A::Element);
+    fn fft(v: impl Iterator<Item = T>, spectrum: &mut A::Element);
 }
 
 pub struct Engine<T, const N: usize, I, W, A>
 where
     A: Allocator<T, N>,
-    I: Implementation<T, N, W, A>,
+    I: Implementation<T, N, A>,
     W: WindowFunction<T>,
-    T: Copy + Mul<W::TMul, Output = T>,
+    T: Copy,
 {
     impl_marker: PhantomData<I>,
     allocator_marker: PhantomData<A>,
@@ -62,7 +62,9 @@ type DefaultAllocator = allocators::boxed::BoxedAllocator;
 #[cfg(not(feature = "alloc"))]
 type DefaultAllocator = allocators::array::ArrayAllocator;
 
-impl<const N: usize> Default for Engine<f32, N, DefaultImpl, DefaultWindowingFunction, DefaultAllocator> {
+impl<const N: usize> Default
+    for Engine<f32, N, DefaultImpl, DefaultWindowingFunction, DefaultAllocator>
+{
     fn default() -> Engine<f32, N, DefaultImpl, DefaultWindowingFunction, DefaultAllocator> {
         Engine {
             impl_marker: PhantomData,
@@ -76,9 +78,9 @@ impl<const N: usize> Default for Engine<f32, N, DefaultImpl, DefaultWindowingFun
 impl<T, const N: usize, I, W, A> Engine<T, N, I, W, A>
 where
     A: Allocator<T, N>,
-    I: Implementation<T, N, W, A>,
+    I: Implementation<T, N, A>,
     W: WindowFunction<T>,
-    T: Copy + Mul<W::TMul, Output = T>,
+    T: Copy,
 {
     pub fn new() -> Engine<T, N, I, W, A> {
         Engine {
@@ -90,6 +92,6 @@ where
     }
 
     pub fn fft(&self, v: &[T; N], spectrum: &mut <A as Allocator<T, N>>::Element) {
-        <I as Implementation<T, N, W, A>>::fft(v, spectrum)
+        <I as Implementation<T, N, A>>::fft(W::windowed::<N>(v), spectrum)
     }
 }

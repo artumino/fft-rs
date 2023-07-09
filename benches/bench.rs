@@ -1,4 +1,4 @@
-use std::{sync::Arc, ops::Mul};
+use std::{sync::Arc};
 
 use criterion::{
     black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, BenchmarkId,
@@ -7,7 +7,8 @@ use criterion::{
 use fft::{
     allocators::{array::ArrayAllocator, boxed::BoxedAllocator},
     implementations::CooleyTukey,
-    Allocator, Implementation, WindowFunction, windows::Rect,
+    windows::Rect,
+    Allocator, Implementation, WindowFunction,
 };
 use num_complex::Complex32;
 use random::Source;
@@ -38,10 +39,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
 fn run_bench_f32<const N: usize, I, W, A>(c: &mut BenchmarkGroup<'_, WallTime>)
 where
-    I: Implementation<f32, N, W, A>,
+    I: Implementation<f32, N, A>,
     A: Allocator<f32, N>,
     W: WindowFunction<f32>,
-    f32: Mul<W::TMul, Output = f32>
 {
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();
@@ -57,10 +57,9 @@ where
 
 fn run_bench_c32<const N: usize, I, W, A>(c: &mut BenchmarkGroup<'_, WallTime>)
 where
-    I: Implementation<Complex32, N, W, A>,
+    I: Implementation<Complex32, N, A>,
     A: Allocator<Complex32, N>,
     W: WindowFunction<Complex32>,
-    Complex32: Mul<W::TMul, Output = Complex32>
 {
     let allocator_name = std::any::type_name::<A>().split("::").last().unwrap();
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();

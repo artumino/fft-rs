@@ -1,5 +1,5 @@
 use crate::implementations::CooleyTukey;
-use crate::{Allocator, Implementation, WindowFunction};
+use crate::{Allocator, Implementation};
 
 use core::ops::{Add, Mul, Sub};
 
@@ -7,26 +7,24 @@ use core::ops::{Add, Mul, Sub};
 use micromath::F32Ext;
 use num_traits::FromPrimitive;
 
-impl<T, const N: usize, W, A> Implementation<T, N, W, A> for CooleyTukey
+impl<T, const N: usize, A> Implementation<T, N, A> for CooleyTukey
 where
     A: Allocator<T, N>,
-    W: WindowFunction<T, TMul = <T as OmegaCalculator<T>>::TMul>,
     T: Copy
         + Add<Output = T>
         + Sub<Output = T>
         + OmegaCalculator<T>
-        + Mul<<T as OmegaCalculator<T>>::TMul, Output = T>
+        + Mul<<T as OmegaCalculator<T>>::TMul, Output = T>,
 {
-    fn fft(v: &[T; N], spectrum: &mut A::Element) {
+    fn fft(v: impl Iterator<Item = T>, spectrum: &mut A::Element) {
         let h = N >> 1;
         let mut swap_buffer = A::allocate();
         let (mut old, mut new) = (spectrum.as_mut(), swap_buffer.as_mut());
         let f_n = FromPrimitive::from_usize(N).unwrap();
-        
-        //Apply windowing function
-        v.iter().enumerate().for_each(|(i, x)| {
-            old[i] = *x * W::calculate(FromPrimitive::from_usize(i).unwrap(), f_n);
-        });
+
+        for (i, x) in v.into_iter().enumerate() {
+            old[i] = x;
+        }
 
         let (mut sublen, mut stride) = (1, N);
         let mut swapped = false;
