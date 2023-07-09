@@ -53,19 +53,14 @@ where
     element_marker: PhantomData<T>,
 }
 
-type DefaultImpl = CooleyTukey;
-type DefaultWindowingFunction = Rect;
-
 #[cfg(feature = "alloc")]
 type DefaultAllocator = allocators::boxed::BoxedAllocator;
 
 #[cfg(not(feature = "alloc"))]
 type DefaultAllocator = allocators::array::ArrayAllocator;
 
-impl<const N: usize> Default
-    for Engine<f32, N, DefaultImpl, DefaultWindowingFunction, DefaultAllocator>
-{
-    fn default() -> Engine<f32, N, DefaultImpl, DefaultWindowingFunction, DefaultAllocator> {
+impl<const N: usize> Default for Engine<f32, N, CooleyTukey, Rect, DefaultAllocator> {
+    fn default() -> Engine<f32, N, CooleyTukey, Rect, DefaultAllocator> {
         Engine {
             impl_marker: PhantomData,
             allocator_marker: PhantomData,
