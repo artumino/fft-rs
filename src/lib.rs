@@ -21,10 +21,14 @@ pub trait WindowFunction<T>
 where
     T: Copy,
 {
-    type ItemMapper<'a>: ExactSizeIterator<Item = T>
+    type ItemMapper<'a, TIter: IntoIterator<Item = &'a T>>: IntoIterator<Item = T>
     where
         T: 'a;
-    fn windowed<const N: usize>(v: &[T]) -> Self::ItemMapper<'_>;
+    fn windowed<'a, const N: usize, TIter: IntoIterator<Item = &'a T>>(
+        v: TIter,
+    ) -> Self::ItemMapper<'a, TIter>
+    where
+        T: 'a;
 }
 
 pub trait Allocator<T, const N: usize> {
@@ -37,7 +41,7 @@ where
     A: Allocator<T, N>,
     T: Copy,
 {
-    fn fft(v: impl ExactSizeIterator<Item = T>, spectrum: &mut A::Element);
+    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element);
 }
 
 pub struct Engine<T, const N: usize, I, W, A>
@@ -86,7 +90,13 @@ where
         }
     }
 
-    pub fn fft(&self, v: &[T; N], spectrum: &mut <A as Allocator<T, N>>::Element) {
-        <I as Implementation<T, N, A>>::fft(W::windowed::<N>(v), spectrum)
+    pub fn fft<'a, TIter: IntoIterator<Item = &'a T>>(
+        &self,
+        v: TIter,
+        spectrum: &mut <A as Allocator<T, N>>::Element,
+    ) where
+        T: 'a,
+    {
+        <I as Implementation<T, N, A>>::fft(W::windowed::<N, TIter>(v), spectrum)
     }
 }

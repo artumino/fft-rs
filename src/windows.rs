@@ -1,4 +1,4 @@
-use core::{iter::Copied, ops::Mul, slice::Iter};
+use core::{iter::Copied, ops::Mul};
 
 use crate::WindowFunction;
 
@@ -10,8 +10,13 @@ impl<T> WindowFunction<T> for Rect
 where
     T: Copy + Mul<f32, Output = T>,
 {
-    type ItemMapper<'a> = Copied<Iter<'a, T>> where T : 'a ;
-    fn windowed<const N: usize>(v: &[T]) -> Self::ItemMapper<'_> {
-        v.iter().copied()
+    type ItemMapper<'a, TIter: IntoIterator<Item = &'a T>> = Copied<TIter::IntoIter> where T : 'a;
+    fn windowed<'a, const N: usize, TIter: IntoIterator<Item = &'a T>>(
+        v: TIter,
+    ) -> Self::ItemMapper<'a, TIter>
+    where
+        T: 'a,
+    {
+        v.into_iter().copied()
     }
 }

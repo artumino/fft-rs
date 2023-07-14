@@ -21,12 +21,12 @@ const ALPHA: f32 = 0.5;
 const BETA: f32 = 0.75;
 const N: usize = 32;
 
-pub trait EngineTest<T: Copy, const N: usize, A, W, I>
+pub trait EngineTest<'a, T: Copy, const N: usize, A, W, I>
 where
     A: Allocator<T, N>,
     I: Implementation<T, N, A>,
     W: WindowFunction<T>,
-    T: Copy,
+    T: Copy + 'a,
 {
     fn engine() -> Engine<T, N, I, W, A>;
     fn allocate() -> A::Element;
@@ -37,14 +37,15 @@ pub struct TestFixture<T: Copy, const N: usize, A: Allocator<T, N>> {
     allocator_marker: PhantomData<A>,
 }
 
-impl<T, const N: usize, A: Allocator<T, N>> EngineTest<T, N, A, Rect, CooleyTukey>
+impl<'a, T, const N: usize, A: Allocator<T, N>> EngineTest<'a, T, N, A, Rect, CooleyTukey>
     for TestFixture<T, N, A>
 where
     T: Copy
         + Add<Output = T>
         + Sub<Output = T>
         + OmegaCalculator<T, TMul = f32>
-        + Mul<f32, Output = T>,
+        + Mul<f32, Output = T>
+        + 'a,
 {
     fn engine() -> Engine<T, N, CooleyTukey, Rect, A> {
         Engine::new()
@@ -68,14 +69,14 @@ fn linearity_holds() {
     sum_v(&mut a_v, b_e.into_iter());
     let sum = a_v;
     let mut fft_sum = ComplexTestFixture::allocate();
-    engine.fft(&sum, &mut fft_sum);
+    engine.fft(sum.as_slice(), &mut fft_sum);
 
     //Sum of FFT
     let mut a_fft_v = ComplexTestFixture::allocate();
-    engine.fft(&v, &mut a_fft_v);
+    engine.fft(v.as_slice(), &mut a_fft_v);
     mul_v(&mut a_fft_v, ALPHA);
     let mut e_fft_v = ComplexTestFixture::allocate();
-    engine.fft(&e, &mut e_fft_v);
+    engine.fft(e.as_slice(), &mut e_fft_v);
     sum_v(&mut a_fft_v, e_fft_v.iter_mut().map(|x| *x * BETA));
     let sum_fft = a_fft_v;
 
@@ -87,7 +88,7 @@ fn unit_impulse_holds() {
     let engine = ComplexTestFixture::engine();
     let impulse = generate_impulse::<N, 0, Complex32>();
     let mut fft_impulse = ComplexTestFixture::allocate();
-    engine.fft(&impulse, &mut fft_impulse);
+    engine.fft(impulse.as_slice(), &mut fft_impulse);
     array_assert_eq(
         generate::<N, Complex32>(|_| Complex32::new(1.0f32, 0.0f32)).as_slice(),
         fft_impulse.as_ref(),
@@ -102,9 +103,9 @@ fn time_shift_holds() {
     let b =
         generate::<N, Complex32>(|idx| Complex32::new(f32::sin(((idx + 1) as f32) / 10.0), 0.0f32));
     let mut fft_a = ComplexTestFixture::allocate();
-    engine.fft(a.as_ref(), &mut fft_a);
+    engine.fft(a.as_slice(), &mut fft_a);
     let mut fft_b = ComplexTestFixture::allocate();
-    engine.fft(b.as_ref(), &mut fft_b);
+    engine.fft(b.as_slice(), &mut fft_b);
     assert_eq!(fft_a, fft_b);
     array_assert_eq(fft_a.as_ref(), fft_b.as_ref(), 1e-1);
 }

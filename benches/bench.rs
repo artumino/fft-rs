@@ -64,7 +64,12 @@ where
     c.bench_with_input(
         BenchmarkId::new(format!("{strategy_name}_{allocator_name}").as_str(), N),
         &N,
-        |b, _| b.iter(|| boxed_engine.fft(black_box(&vec), &mut out_spec)),
+        |b, _| {
+            b.iter(|| {
+                let vec = vec.clone();
+                boxed_engine.fft(black_box(vec.as_slice()), &mut out_spec)
+            })
+        },
     );
 }
 

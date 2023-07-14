@@ -1,7 +1,6 @@
 use core::{
     iter::{Enumerate, Map},
     ops::Mul,
-    slice::Iter,
 };
 
 #[allow(unused_imports)]
@@ -14,11 +13,13 @@ impl<T> WindowFunction<T> for Hanning
 where
     T: Copy + Mul<f32, Output = T>,
 {
-    type ItemMapper<'a> = Map<Enumerate<Iter<'a, T>>, fn((usize, &'a T)) -> T> where T : 'a ;
-    fn windowed<const N: usize>(v: &[T]) -> Self::ItemMapper<'_> {
-        v.iter()
+    type ItemMapper<'a, TIter : IntoIterator<Item = &'a T>> = Map<Enumerate<TIter::IntoIter>, fn((usize, &'a T)) -> T> where T : 'a;
+    fn windowed<'a, const N: usize, TIter: IntoIterator<Item = &'a T>>(
+        v: TIter,
+    ) -> Self::ItemMapper<'a, TIter> {
+        v.into_iter()
             .enumerate()
-            .map(|(i, x)| (*x) * hanning(i as f32, N as f32))
+            .map(|(i, x)| *x * hanning(i as f32, N as f32))
     }
 }
 

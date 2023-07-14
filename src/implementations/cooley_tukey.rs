@@ -16,7 +16,7 @@ where
         + OmegaCalculator<T>
         + Mul<<T as OmegaCalculator<T>>::TMul, Output = T>,
 {
-    fn fft(v: impl Iterator<Item = T>, spectrum: &mut A::Element) {
+    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element) {
         let h = N >> 1;
         let mut swap_buffer = A::allocate();
         let (mut old, mut new) = (spectrum.as_mut(), swap_buffer.as_mut());
