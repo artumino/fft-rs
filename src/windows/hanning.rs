@@ -4,6 +4,9 @@ use core::{
     slice::Iter,
 };
 
+#[allow(unused_imports)]
+use micromath::F32Ext;
+
 use crate::WindowFunction;
 
 pub struct Hanning;
