@@ -1,4 +1,3 @@
-use crate::implementations::CooleyTukey;
 use crate::{Allocator, Implementation};
 
 use core::ops::{Add, Mul, Sub};
@@ -6,6 +5,8 @@ use core::ops::{Add, Mul, Sub};
 #[allow(unused_imports)]
 use micromath::F32Ext;
 use num_traits::FromPrimitive;
+
+use super::CooleyTukey;
 
 impl<T, const N: usize, A> Implementation<T, N, A> for CooleyTukey
 where
@@ -65,5 +66,20 @@ where
     type TMul = f32;
     fn calculate_omega(k: usize, n: f32) -> f32 {
         (core::f32::consts::PI * (k as f32) / n).exp()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{implementations::CooleyTukey, test::ComplexTestFixture};
+
+    #[test]
+    fn impulse_test() {
+        ComplexTestFixture::<CooleyTukey>::impulse_test();
+    }
+
+    #[test]
+    fn linearity_test() {
+        ComplexTestFixture::<CooleyTukey>::linearity_test();
     }
 }

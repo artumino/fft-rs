@@ -10,11 +10,12 @@ use criterion::{
 };
 use fft::{
     allocators::{array::ArrayAllocator, boxed::BoxedAllocator},
-    implementations::{cooley_tukey::OmegaCalculator, CooleyTukey},
+    implementations::{cooley_tukey::OmegaCalculator, naive::ImgUnit, CooleyTukey, Naive},
     windows::{hanning::Hanning, Rect},
     Allocator, Implementation, WindowFunction,
 };
-use num_complex::Complex32;
+use num_complex::{Complex32, ComplexFloat};
+
 use random::Source;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -22,6 +23,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     run_cooley_bench_group::<f32, Rect>(c, "FFT<f32>");
     run_cooley_bench_group::<Complex32, Hanning>(c, "FFT<Complex32> + Hanning");
     run_cooley_bench_group::<f32, Hanning>(c, "FFT<f32> + Hanning");
+    run_naive_bench_group::<Complex32, Rect>(c, "Naive<Complex32>");
+    run_naive_bench_group::<Complex32, Hanning>(c, "Naive<Complex32> + Hanning");
 }
 
 fn run_cooley_bench_group<T, W>(c: &mut Criterion, name: &'static str)
@@ -45,6 +48,27 @@ where
     run_bench::<T, 512, CooleyTukey, W, ArrayAllocator>(&mut group);
     run_bench::<T, 32, CooleyTukey, W, BoxedAllocator>(&mut group);
     run_bench::<T, 32, CooleyTukey, W, ArrayAllocator>(&mut group);
+    group.finish();
+}
+
+fn run_naive_bench_group<T, W>(c: &mut Criterion, name: &'static str)
+where
+    W: WindowFunction<T>,
+    T: Copy
+        + Debug
+        + Default
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<f32, Output = T>
+        + ComplexFloat
+        + ImgUnit,
+    [T]: Randomizable<T>,
+{
+    let mut group = c.benchmark_group(name);
+    run_bench::<T, 512, Naive, W, BoxedAllocator>(&mut group);
+    run_bench::<T, 512, Naive, W, ArrayAllocator>(&mut group);
+    run_bench::<T, 32, Naive, W, BoxedAllocator>(&mut group);
+    run_bench::<T, 32, Naive, W, ArrayAllocator>(&mut group);
     group.finish();
 }
 

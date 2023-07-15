@@ -5,7 +5,7 @@
 extern crate alloc;
 
 #[cfg(test)]
-mod test;
+pub(crate) mod test;
 
 use core::marker::PhantomData;
 

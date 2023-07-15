@@ -1,3 +1,4 @@
+// Linearity + Impulse inspired by:
 // Ergün, Funda. (1995, June). Testing multivariate linear functions: Overcoming the generator bottleneck.
 // In Proc. Twenty-Seventh Ann. ACM Symp. Theory of Computing. (p. 407–416).
 
@@ -8,12 +9,13 @@ use core::{
 };
 
 use approx::{assert_relative_eq, AbsDiffEq, RelativeEq};
-use num_complex::Complex32;
+use num_complex::{Complex32, ComplexFloat};
+use num_traits::{One, Zero};
 use std::sync::Arc;
 
 use crate::{
     allocators::boxed::BoxedAllocator,
-    implementations::{cooley_tukey::OmegaCalculator, CooleyTukey},
+    implementations::{naive::ImgUnit, Naive},
     windows::Rect,
     Allocator, Engine, Implementation, WindowFunction,
 };
@@ -21,33 +23,39 @@ const ALPHA: f32 = 0.5;
 const BETA: f32 = 0.75;
 const N: usize = 32;
 
-pub trait EngineTest<'a, T: Copy, const N: usize, A, W, I>
+pub(crate) trait EngineTest<T, const N: usize, A, W, I>
 where
     A: Allocator<T, N>,
     I: Implementation<T, N, A>,
     W: WindowFunction<T>,
-    T: Copy + 'a,
+    T: Copy + Mul<f32, Output = T> + ImgUnit + ComplexFloat,
 {
-    fn engine() -> Engine<T, N, I, W, A>;
+    fn naive_engine() -> Engine<T, N, Naive, W, A>;
+    fn test_engine() -> Engine<T, N, I, Rect, A>;
     fn allocate() -> A::Element;
 }
 
-pub struct TestFixture<T: Copy, const N: usize, A: Allocator<T, N>> {
+pub(crate) struct TestFixture<
+    T: Copy,
+    const N: usize,
+    A: Allocator<T, N>,
+    I: Implementation<T, N, A>,
+> {
     element_marker: PhantomData<T>,
     allocator_marker: PhantomData<A>,
+    implementation_marker: PhantomData<I>,
 }
 
-impl<'a, T, const N: usize, A: Allocator<T, N>> EngineTest<'a, T, N, A, Rect, CooleyTukey>
-    for TestFixture<T, N, A>
+impl<T, const N: usize, A: Allocator<T, N>, I: Implementation<T, N, A>> EngineTest<T, N, A, Rect, I>
+    for TestFixture<T, N, A, I>
 where
-    T: Copy
-        + Add<Output = T>
-        + Sub<Output = T>
-        + OmegaCalculator<T, TMul = f32>
-        + Mul<f32, Output = T>
-        + 'a,
+    T: Copy + Add<Output = T> + Sub<Output = T> + Mul<f32, Output = T> + ImgUnit + ComplexFloat,
 {
-    fn engine() -> Engine<T, N, CooleyTukey, Rect, A> {
+    fn naive_engine() -> Engine<T, N, Naive, Rect, A> {
+        Engine::new()
+    }
+
+    fn test_engine() -> Engine<T, N, I, Rect, A> {
         Engine::new()
     }
 
@@ -56,61 +64,74 @@ where
     }
 }
 
-type ComplexTestFixture = TestFixture<Complex32, 32, BoxedAllocator>;
-#[test]
-fn linearity_holds() {
-    let engine = ComplexTestFixture::engine();
-    let v = generate::<N, Complex32>(|idx| Complex32::new(idx as f32, 0.0f32));
-    let e = generate::<N, Complex32>(|idx| Complex32::new((idx + 1usize) as f32, 0.0f32));
+impl<T, const N: usize, A: Allocator<T, N>, I: Implementation<T, N, A>> TestFixture<T, N, A, I>
+where
+    T: Copy
+        + Add<Output = T>
+        + AddAssign<T>
+        + Sub<Output = T>
+        + MulAssign<T>
+        + MulAssign<f32>
+        + Mul<f32, Output = T>
+        + ImgUnit
+        + ComplexFloat
+        + Default
+        + Debug
+        + One
+        + Zero
+        + RelativeEq,
+    T::Epsilon: Copy + From<f32>,
+{
+    pub fn impulse_test() {
+        let engine = Self::test_engine();
+        let impulse = generate_impulse::<N, 0, T>();
+        let mut fft_impulse = A::allocate();
+        engine.fft(impulse.as_slice(), &mut fft_impulse);
+        array_assert_eq(
+            generate::<N, T>(|_| T::one()).as_slice(),
+            fft_impulse.as_ref(),
+            T::Epsilon::from(1e-1),
+        );
+    }
 
-    // FFT of sum
-    let mut a_v = v.map(|v| v * ALPHA);
-    let b_e = e.map(|v| v * BETA);
-    sum_v(&mut a_v, b_e.into_iter());
-    let sum = a_v;
-    let mut fft_sum = ComplexTestFixture::allocate();
-    engine.fft(sum.as_slice(), &mut fft_sum);
+    pub fn linearity_test() {
+        let engine = Self::test_engine();
+        let v = generate::<N, T>(|idx| T::one() * idx as f32);
+        let e = generate::<N, T>(|idx| T::one() * (idx + 1usize) as f32);
 
-    //Sum of FFT
-    let mut a_fft_v = ComplexTestFixture::allocate();
-    engine.fft(v.as_slice(), &mut a_fft_v);
-    mul_v(&mut a_fft_v, ALPHA);
-    let mut e_fft_v = ComplexTestFixture::allocate();
-    engine.fft(e.as_slice(), &mut e_fft_v);
-    sum_v(&mut a_fft_v, e_fft_v.iter_mut().map(|x| *x * BETA));
-    let sum_fft = a_fft_v;
+        // FFT of sum
+        let mut a_v = v.map(|v| v * ALPHA);
+        let b_e = e.map(|v| v * BETA);
+        sum_v(&mut a_v, b_e.into_iter());
+        let sum = a_v;
+        let mut fft_sum = A::allocate();
+        engine.fft(sum.as_slice(), &mut fft_sum);
 
-    array_assert_eq(fft_sum.as_ref(), sum_fft.as_ref(), 1e-1);
+        //Sum of FFT
+        let mut a_fft_v = A::allocate();
+        engine.fft(v.as_slice(), &mut a_fft_v);
+        mul_v(a_fft_v.as_mut(), ALPHA);
+        let mut e_fft_v = A::allocate();
+        engine.fft(e.as_slice(), &mut e_fft_v);
+        sum_v(
+            a_fft_v.as_mut(),
+            e_fft_v.as_mut().iter_mut().map(|x| *x * BETA),
+        );
+        let sum_fft = a_fft_v;
+
+        array_assert_eq(fft_sum.as_ref(), sum_fft.as_ref(), T::Epsilon::from(1e-1));
+    }
+
+    pub fn ground_truth_test() {
+        let _engine = Self::test_engine();
+        let _naive_engine = Self::naive_engine();
+
+    }
 }
 
-#[test]
-fn unit_impulse_holds() {
-    let engine = ComplexTestFixture::engine();
-    let impulse = generate_impulse::<N, 0, Complex32>();
-    let mut fft_impulse = ComplexTestFixture::allocate();
-    engine.fft(impulse.as_slice(), &mut fft_impulse);
-    array_assert_eq(
-        generate::<N, Complex32>(|_| Complex32::new(1.0f32, 0.0f32)).as_slice(),
-        fft_impulse.as_ref(),
-        1e-1,
-    );
-}
+pub(crate) type ComplexTestFixture<I> = TestFixture<Complex32, N, BoxedAllocator, I>;
 
-#[test]
-fn time_shift_holds() {
-    let engine = ComplexTestFixture::engine();
-    let a = generate::<N, Complex32>(|idx| Complex32::new(f32::sin((idx as f32) / 10.0), 0.0f32));
-    let b =
-        generate::<N, Complex32>(|idx| Complex32::new(f32::sin(((idx + 1) as f32) / 10.0), 0.0f32));
-    let mut fft_a = ComplexTestFixture::allocate();
-    engine.fft(a.as_slice(), &mut fft_a);
-    let mut fft_b = ComplexTestFixture::allocate();
-    engine.fft(b.as_slice(), &mut fft_b);
-    assert_eq!(fft_a, fft_b);
-    array_assert_eq(fft_a.as_ref(), fft_b.as_ref(), 1e-1);
-}
-
-fn sum_v<T>(a: &mut [T], b: impl Iterator<Item = T>)
+pub(crate) fn sum_v<T>(a: &mut [T], b: impl Iterator<Item = T>)
 where
     T: AddAssign<T> + Copy,
 {
@@ -119,7 +140,7 @@ where
     }
 }
 
-fn mul_v<T, TMul>(a: &mut [T], alpha: TMul)
+pub(crate) fn mul_v<T, TMul>(a: &mut [T], alpha: TMul)
 where
     T: MulAssign<TMul> + Copy,
     TMul: Copy,
@@ -129,7 +150,7 @@ where
     }
 }
 
-fn generate<const S: usize, T>(generator: fn(usize) -> T) -> Arc<[T; S]>
+pub(crate) fn generate<const S: usize, T>(generator: fn(usize) -> T) -> Arc<[T; S]>
 where
     T: Default + Copy + Debug,
 {
@@ -140,46 +161,18 @@ where
     v.into()
 }
 
-fn generate_impulse<const S: usize, const INSTANT: usize, T>() -> Arc<[T; S]>
+pub(crate) fn generate_impulse<const S: usize, const INSTANT: usize, T>() -> Arc<[T; S]>
 where
-    T: Default + Copy + Debug + Impulse + Zeroed,
+    T: Default + Copy + Debug + One + Zero,
 {
-    generate(|idx| {
-        if idx == INSTANT {
-            T::impulse()
-        } else {
-            T::zeroed()
-        }
-    })
+    generate(|idx| if idx == INSTANT { T::one() } else { T::zero() })
 }
 
-fn array_assert_eq<T>(a: &[T], b: &[T], epsilon: <T as AbsDiffEq>::Epsilon)
+pub(crate) fn array_assert_eq<T>(a: &[T], b: &[T], epsilon: <T as AbsDiffEq>::Epsilon)
 where
     T: RelativeEq + Debug,
     <T as AbsDiffEq>::Epsilon: Copy,
 {
     assert_eq!(a.len(), b.len());
     (0..a.len()).for_each(|idx| assert_relative_eq!(a[idx], b[idx], epsilon = epsilon));
-}
-
-trait Impulse {
-    fn impulse() -> Self;
-}
-
-trait Zeroed {
-    fn zeroed() -> Self;
-}
-
-impl Impulse for Complex32 {
-    #[inline]
-    fn impulse() -> Self {
-        Complex32::new(1.0f32, 0.0f32)
-    }
-}
-
-impl Zeroed for Complex32 {
-    #[inline]
-    fn zeroed() -> Self {
-        Complex32::new(0.0f32, 0.0f32)
-    }
 }
