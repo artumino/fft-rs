@@ -48,10 +48,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        implementations::Naive,
-        test::{ComplexTestFixture, CONST_DISTRIBUTION},
-    };
+    use crate::{implementations::Naive, test::ComplexTestFixture};
 
     #[test]
     fn impulse_test() {
@@ -65,6 +62,6 @@ mod test {
 
     #[test]
     fn ground_truth_test() {
-        ComplexTestFixture::<Naive>::ground_truth_test(CONST_DISTRIBUTION.as_ref());
+        ComplexTestFixture::<Naive>::ground_truth_test();
     }
 }
