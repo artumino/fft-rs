@@ -19,10 +19,10 @@ use crate::{
     allocators::boxed::BoxedAllocator,
     implementations::{naive::ImgUnit, Naive},
     windows::Rect,
-    Allocator, Engine, Implementation, WindowFunction,
+    Allocator, Engine, Implementation, Scalar, WindowFunction,
 };
-const ALPHA: f32 = 0.5;
-const BETA: f32 = 0.75;
+const ALPHA: Scalar = 0.5;
+const BETA: Scalar = 0.75;
 const N: usize = 32;
 
 pub(crate) trait EngineTest<T, const N: usize, A, W, I>
@@ -30,7 +30,7 @@ where
     A: Allocator<T, N>,
     I: Implementation<T, N, A>,
     W: WindowFunction<T>,
-    T: Copy + Mul<f32, Output = T> + ImgUnit + ComplexFloat,
+    T: Copy + Mul<Scalar, Output = T> + ImgUnit + ComplexFloat,
 {
     fn naive_engine() -> Engine<T, N, Naive, W, A>;
     fn test_engine() -> Engine<T, N, I, Rect, A>;
@@ -51,7 +51,7 @@ pub(crate) struct TestFixture<
 impl<T, const N: usize, A: Allocator<T, N>, I: Implementation<T, N, A>> EngineTest<T, N, A, Rect, I>
     for TestFixture<T, N, A, I>
 where
-    T: Copy + Add<Output = T> + Sub<Output = T> + Mul<f32, Output = T> + ImgUnit + ComplexFloat,
+    T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Scalar, Output = T> + ImgUnit + ComplexFloat,
 {
     fn naive_engine() -> Engine<T, N, Naive, Rect, A> {
         Engine::new()
@@ -73,8 +73,8 @@ where
         + AddAssign<T>
         + Sub<Output = T>
         + MulAssign<T>
-        + MulAssign<f32>
-        + Mul<f32, Output = T>
+        + MulAssign<Scalar>
+        + Mul<Scalar, Output = T>
         + ImgUnit
         + ComplexFloat
         + Default
@@ -82,7 +82,7 @@ where
         + One
         + Zero
         + RelativeEq,
-    T::Epsilon: Copy + From<f32>,
+    T::Epsilon: Copy + From<Scalar>,
     Standard: Distribution<T>,
 {
     pub fn impulse_test() {
@@ -99,8 +99,8 @@ where
 
     pub fn linearity_test() {
         let engine = Self::test_engine();
-        let v = generate::<N, T>(|idx| T::one() * idx as f32);
-        let e = generate::<N, T>(|idx| T::one() * (idx + 1usize) as f32);
+        let v = generate::<N, T>(|idx| T::one() * idx as Scalar);
+        let e = generate::<N, T>(|idx| T::one() * (idx + 1usize) as Scalar);
 
         // FFT of sum
         let mut a_v = v.map(|v| v * ALPHA);

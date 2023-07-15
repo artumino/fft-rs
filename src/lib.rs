@@ -63,8 +63,8 @@ type DefaultAllocator = allocators::boxed::BoxedAllocator;
 #[cfg(not(feature = "alloc"))]
 type DefaultAllocator = allocators::array::ArrayAllocator;
 
-impl<const N: usize> Default for Engine<f32, N, CooleyTukey, Rect, DefaultAllocator> {
-    fn default() -> Engine<f32, N, CooleyTukey, Rect, DefaultAllocator> {
+impl<const N: usize> Default for Engine<Scalar, N, CooleyTukey, Rect, DefaultAllocator> {
+    fn default() -> Engine<Scalar, N, CooleyTukey, Rect, DefaultAllocator> {
         Engine {
             impl_marker: PhantomData,
             allocator_marker: PhantomData,
@@ -100,3 +100,15 @@ where
         <I as Implementation<T, N, A>>::fft(W::windowed::<N, TIter>(v), spectrum)
     }
 }
+
+#[cfg(not(feature = "precision"))]
+pub type Scalar = f32;
+
+#[cfg(feature = "precision")]
+pub type Scalar = f64;
+
+#[cfg(not(feature = "precision"))]
+pub const PI: Scalar = core::f32::consts::PI;
+
+#[cfg(feature = "precision")]
+pub const PI: Scalar = core::f64::consts::PI;

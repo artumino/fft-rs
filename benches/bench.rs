@@ -10,18 +10,18 @@ use criterion::{
 };
 use fft::{
     allocators::{array::ArrayAllocator, boxed::BoxedAllocator},
-    implementations::{cooley_tukey::OmegaCalculator, naive::ImgUnit, CooleyTukey, Naive},
+    implementations::{naive::ImgUnit, CooleyTukey, Naive},
     windows::{hanning::Hanning, Rect},
-    Allocator, Implementation, WindowFunction,
+    Allocator, Implementation, Scalar, WindowFunction,
 };
 use num_complex::{Complex32, ComplexFloat};
 use rand::{distributions::Standard, prelude::Distribution, rngs::StdRng, Rng, SeedableRng};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     run_cooley_bench_group::<Complex32, Rect>(c, "FFT<Complex32>");
-    run_cooley_bench_group::<f32, Rect>(c, "FFT<f32>");
+    run_cooley_bench_group::<Scalar, Rect>(c, "FFT<Scalar>");
     run_cooley_bench_group::<Complex32, Hanning>(c, "FFT<Complex32> + Hanning");
-    run_cooley_bench_group::<f32, Hanning>(c, "FFT<f32> + Hanning");
+    run_cooley_bench_group::<Scalar, Hanning>(c, "FFT<Scalar> + Hanning");
     run_naive_bench_group::<Complex32, Rect>(c, "Naive<Complex32>");
     run_naive_bench_group::<Complex32, Hanning>(c, "Naive<Complex32> + Hanning");
 }
@@ -29,13 +29,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 fn run_cooley_bench_group<T, W>(c: &mut Criterion, name: &'static str)
 where
     W: WindowFunction<T>,
-    T: Copy
-        + Debug
-        + Default
-        + Add<Output = T>
-        + OmegaCalculator<T>
-        + Mul<<T as OmegaCalculator<T>>::TMul, Output = T>
-        + Sub<Output = T>,
+    T: Copy + Debug + Default + Add<Output = T> + Mul<Scalar, Output = T> + Sub<Output = T>,
     [T]: Randomizable<T>,
 {
     let mut group = c.benchmark_group(name);
@@ -58,7 +52,7 @@ where
         + Default
         + Add<Output = T>
         + Sub<Output = T>
-        + Mul<f32, Output = T>
+        + Mul<Scalar, Output = T>
         + ComplexFloat
         + ImgUnit,
     [T]: Randomizable<T>,

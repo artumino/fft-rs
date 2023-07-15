@@ -6,12 +6,12 @@ use core::{
 #[allow(unused_imports)]
 use micromath::F32Ext;
 
-use crate::WindowFunction;
+use crate::{Scalar, WindowFunction, PI};
 
 pub struct Hanning;
 impl<T> WindowFunction<T> for Hanning
 where
-    T: Copy + Mul<f32, Output = T>,
+    T: Copy + Mul<Scalar, Output = T>,
 {
     type ItemMapper<'a, TIter : IntoIterator<Item = &'a T>> = Map<Enumerate<TIter::IntoIter>, fn((usize, &'a T)) -> T> where T : 'a;
     fn windowed<'a, const N: usize, TIter: IntoIterator<Item = &'a T>>(
@@ -19,11 +19,11 @@ where
     ) -> Self::ItemMapper<'a, TIter> {
         v.into_iter()
             .enumerate()
-            .map(|(i, x)| *x * hanning(i as f32, N as f32))
+            .map(|(i, x)| *x * hanning(i as Scalar, N as Scalar))
     }
 }
 
 #[inline(always)]
-fn hanning(i: f32, n: f32) -> f32 {
-    0.5f32 - 0.5f32 * (2.0f32 * core::f32::consts::PI * i / n).cos()
+fn hanning(i: Scalar, n: Scalar) -> Scalar {
+    0.5 - 0.5 * (2.0 * PI * i / n).cos()
 }
