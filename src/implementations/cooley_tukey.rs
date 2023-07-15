@@ -71,7 +71,10 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{implementations::CooleyTukey, test::ComplexTestFixture};
+    use crate::{
+        implementations::CooleyTukey,
+        test::{ComplexTestFixture, CONST_DISTRIBUTION},
+    };
 
     #[test]
     fn impulse_test() {
@@ -81,5 +84,10 @@ mod test {
     #[test]
     fn linearity_test() {
         ComplexTestFixture::<CooleyTukey>::linearity_test();
+    }
+
+    #[test]
+    fn ground_truth_test() {
+        ComplexTestFixture::<CooleyTukey>::ground_truth_test(CONST_DISTRIBUTION.as_ref());
     }
 }

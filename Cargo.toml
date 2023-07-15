@@ -16,8 +16,10 @@ alloc = []
 
 [dev-dependencies]
 approx = { version = "0.5.1", features = ["num-complex"] }
+num-complex = { version = "*", features = ["rand"]}
 criterion = "0.5.1"
-random = "0.14.0"
+once_cell = "1.18.0"
+rand = "0.8.5"
 
 [[bench]]
 name = "bench"

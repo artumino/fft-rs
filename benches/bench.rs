@@ -15,8 +15,7 @@ use fft::{
     Allocator, Implementation, WindowFunction,
 };
 use num_complex::{Complex32, ComplexFloat};
-
-use random::Source;
+use rand::{distributions::Standard, prelude::Distribution, rngs::StdRng, Rng, SeedableRng};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     run_cooley_bench_group::<Complex32, Rect>(c, "FFT<Complex32>");
@@ -113,20 +112,14 @@ where
     result.into()
 }
 
-impl Randomizable<f32> for [f32] {
+impl<T> Randomizable<T> for [T]
+where
+    Standard: Distribution<T>,
+{
     fn randomize(&mut self, seed: u64) {
-        let mut rnd = random::default(seed);
+        let mut rng = StdRng::seed_from_u64(seed);
         for val in self.iter_mut() {
-            *val = rnd.read_f64() as f32;
-        }
-    }
-}
-
-impl Randomizable<Complex32> for [Complex32] {
-    fn randomize(&mut self, seed: u64) {
-        let mut rnd = random::default(seed);
-        for val in self.iter_mut() {
-            *val = Complex32::new(rnd.read_f64() as f32, rnd.read_f64() as f32);
+            *val = rng.gen();
         }
     }
 }

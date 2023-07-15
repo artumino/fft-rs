@@ -9,8 +9,10 @@ use core::{
 };
 
 use approx::{assert_relative_eq, AbsDiffEq, RelativeEq};
-use num_complex::{Complex32, ComplexFloat};
+use num_complex::{Complex32, ComplexDistribution, ComplexFloat};
 use num_traits::{One, Zero};
+use once_cell::sync::Lazy;
+use rand::{distributions::Uniform, prelude::Distribution};
 use std::sync::Arc;
 
 use crate::{
@@ -122,14 +124,27 @@ where
         array_assert_eq(fft_sum.as_ref(), sum_fft.as_ref(), T::Epsilon::from(1e-1));
     }
 
-    pub fn ground_truth_test() {
-        let _engine = Self::test_engine();
-        let _naive_engine = Self::naive_engine();
-
+    pub fn ground_truth_test(dist: &impl Distribution<T>) {
+        let engine = Self::test_engine();
+        let naive_engine = Self::naive_engine();
+        let rng = &mut rand::thread_rng();
+        let v = dist.sample_iter(rng).take(N).collect::<Vec<_>>();
+        let mut fft_v = A::allocate();
+        engine.fft(v.as_slice(), &mut fft_v);
+        let mut naive_fft_v = A::allocate();
+        naive_engine.fft(v.as_slice(), &mut naive_fft_v);
+        array_assert_eq(fft_v.as_ref(), naive_fft_v.as_ref(), T::Epsilon::from(1e-1));
     }
 }
 
 pub(crate) type ComplexTestFixture<I> = TestFixture<Complex32, N, BoxedAllocator, I>;
+pub(crate) static CONST_DISTRIBUTION: Lazy<Box<ComplexDistribution<Uniform<f32>>>> =
+    Lazy::new(|| {
+        Box::new(ComplexDistribution::new(
+            Uniform::new(-1.0f32, 1.0f32),
+            Uniform::new(-1.0f32, 1.0f32),
+        ))
+    });
 
 pub(crate) fn sum_v<T>(a: &mut [T], b: impl Iterator<Item = T>)
 where
