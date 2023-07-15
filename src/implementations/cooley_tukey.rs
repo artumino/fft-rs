@@ -40,7 +40,7 @@ where
         }
 
         if swapped {
-            old.copy_from_slice(new);
+            new.copy_from_slice(old);
         }
     }
 }

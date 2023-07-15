@@ -133,11 +133,14 @@ where
         for seed in Self::GROUND_TEST_SEEDS.iter() {
             let mut rng = StdRng::seed_from_u64(*seed);
             let v = (0..N).map(|_| rng.gen()).collect::<Vec<_>>();
+            println!("v: {:?}", v);
             let mut fft_v = A::allocate();
             engine.fft(v.as_slice(), &mut fft_v);
+            println!("fft: {:?}", fft_v.as_ref());
             let mut naive_fft_v = A::allocate();
             naive_engine.fft(v.as_slice(), &mut naive_fft_v);
-            array_assert_eq(fft_v.as_ref(), naive_fft_v.as_ref(), T::Epsilon::from(1e-1));
+            println!("naive_fft: {:?}", naive_fft_v.as_ref());
+            array_assert_eq(naive_fft_v.as_ref(), fft_v.as_ref(), T::Epsilon::from(1e-1));
         }
     }
 }
@@ -187,5 +190,8 @@ where
     <T as AbsDiffEq>::Epsilon: Copy,
 {
     assert_eq!(a.len(), b.len());
-    (0..a.len()).for_each(|idx| assert_relative_eq!(a[idx], b[idx], epsilon = epsilon));
+    (0..a.len()).for_each(|idx| {
+        println!("Evaluating idx: {idx}");
+        assert_relative_eq!(a[idx], b[idx], epsilon = epsilon)
+    });
 }

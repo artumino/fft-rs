@@ -1,5 +1,5 @@
 use crate::implementations::Naive;
-use crate::{Allocator, Implementation, Scalar};
+use crate::{Allocator, Implementation, Scalar, PI};
 
 use core::ops::{Add, Mul, Sub};
 
@@ -26,7 +26,7 @@ where
         let spectrum = spectrum.as_mut();
         for (i, x) in spectrum.iter_mut().enumerate().take(N) {
             for (j, y) in buffer.iter().enumerate().take(N) {
-                let omega = (-1.0 * 2.0 * (i as Scalar) * (j as Scalar)) / n_f;
+                let omega = -(2.0 * PI * (i as Scalar) * (j as Scalar)) / n_f;
                 *x = *x + *y * (unit * omega).exp();
             }
         }
