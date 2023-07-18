@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 micromath = "2.0.0"
-num-complex = { version = "0.4.3", default-features = false }
+num-complex = { version = "0.4.3", default-features = false, features = ["libm"] }
 num-traits = { version = "0.2.15", default-features = false }
 
 [features]

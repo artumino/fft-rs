@@ -1,6 +1,5 @@
 use crate::{Allocator, ImgUnit, Implementation, Scalar, PI};
 
-
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 
@@ -87,7 +86,7 @@ where
         }
 
         // 1. Bit-reversal permutation
-        let log_n = (N as Scalar).log2().ceil() as usize;
+        let log_n = N.trailing_zeros() as usize;
         let half_n = N >> 1;
 
         #[cfg(not(feature = "alloc"))]
@@ -107,7 +106,6 @@ where
         for _ in 1..log_n {
             sublen >>= 1;
             for j in (0..N).step_by(stride * 2) {
-
                 #[cfg(feature = "alloc")]
                 let mut m = 0;
 
