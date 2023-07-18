@@ -7,8 +7,13 @@ extern crate alloc;
 #[cfg(test)]
 pub(crate) mod test;
 
-use core::marker::PhantomData;
+use core::{
+    marker::PhantomData,
+    ops::{Add, Mul, Sub},
+};
 
+use num_complex::{Complex, ComplexFloat};
+use num_traits::{One, Zero};
 use windows::Rect;
 
 use self::implementations::CooleyTukey;
@@ -41,7 +46,8 @@ where
     A: Allocator<T, N>,
     T: Copy,
 {
-    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element);
+    type Cache: Default;
+    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element, cache: &Self::Cache);
 }
 
 pub struct Engine<T, const N: usize, I, W, A>
@@ -55,6 +61,7 @@ where
     allocator_marker: PhantomData<A>,
     window_marker: PhantomData<W>,
     element_marker: PhantomData<T>,
+    cache: <I as Implementation<T, N, A>>::Cache,
 }
 
 #[cfg(feature = "alloc")]
@@ -63,13 +70,23 @@ type DefaultAllocator = allocators::boxed::BoxedAllocator;
 #[cfg(not(feature = "alloc"))]
 type DefaultAllocator = allocators::array::ArrayAllocator;
 
-impl<const N: usize> Default for Engine<Scalar, N, CooleyTukey, Rect, DefaultAllocator> {
-    fn default() -> Engine<Scalar, N, CooleyTukey, Rect, DefaultAllocator> {
+impl<T, const N: usize> Default for Engine<T, N, CooleyTukey, Rect, DefaultAllocator>
+where
+    T: Copy
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Scalar, Output = T>
+        + ImgUnit
+        + ComplexFloat
+        + Default,
+{
+    fn default() -> Engine<T, N, CooleyTukey, Rect, DefaultAllocator> {
         Engine {
             impl_marker: PhantomData,
             allocator_marker: PhantomData,
             window_marker: PhantomData,
             element_marker: PhantomData,
+            cache: <CooleyTukey as Implementation<T, N, DefaultAllocator>>::Cache::default(),
         }
     }
 }
@@ -87,6 +104,7 @@ where
             allocator_marker: PhantomData,
             window_marker: PhantomData,
             element_marker: PhantomData,
+            cache: <I as Implementation<T, N, A>>::Cache::default(),
         }
     }
 
@@ -97,7 +115,20 @@ where
     ) where
         T: 'a,
     {
-        <I as Implementation<T, N, A>>::fft(W::windowed::<N, TIter>(v), spectrum)
+        <I as Implementation<T, N, A>>::fft(W::windowed::<N, TIter>(v), spectrum, &self.cache);
+    }
+}
+
+pub trait ImgUnit {
+    fn img_unit() -> Self;
+}
+
+impl<T> ImgUnit for Complex<T>
+where
+    T: Zero + One,
+{
+    fn img_unit() -> Self {
+        Complex::new(T::zero(), T::one())
     }
 }
 

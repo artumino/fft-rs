@@ -1,20 +1,21 @@
 use crate::implementations::Naive;
-use crate::{Allocator, Implementation, Scalar, PI};
+use crate::{Allocator, ImgUnit, Implementation, Scalar, PI};
 
 use core::ops::{Add, Mul, Sub};
 
 #[allow(unused_imports)]
 use micromath::F32Ext;
-use num_complex::{Complex, ComplexFloat};
-use num_traits::{FromPrimitive, One, Zero};
+
+use crate::ComplexFloat;
 
 impl<T, const N: usize, A> Implementation<T, N, A> for Naive
 where
     A: Allocator<T, N>,
     T: Copy + Add<Output = T> + Sub<Output = T> + ImgUnit + Mul<Scalar, Output = T> + ComplexFloat,
 {
-    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element) {
-        let n_f: Scalar = FromPrimitive::from_usize(N).unwrap();
+    type Cache = ();
+    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element, _cache: &Self::Cache) {
+        let f_n = N as Scalar;
         let mut buffer = A::allocate();
         let unit = T::img_unit();
         let buffer = buffer.as_mut();
@@ -26,23 +27,10 @@ where
         let spectrum = spectrum.as_mut();
         for (i, x) in spectrum.iter_mut().enumerate().take(N) {
             for (j, y) in buffer.iter().enumerate().take(N) {
-                let omega = -(2.0 * PI * (i as Scalar) * (j as Scalar)) / n_f;
+                let omega = -(2.0 * PI * (i as Scalar) * (j as Scalar)) / f_n;
                 *x = *x + *y * (unit * omega).exp();
             }
         }
-    }
-}
-
-pub trait ImgUnit {
-    fn img_unit() -> Self;
-}
-
-impl<T> ImgUnit for Complex<T>
-where
-    T: Zero + One,
-{
-    fn img_unit() -> Self {
-        Complex::new(T::zero(), T::one())
     }
 }
 

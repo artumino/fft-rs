@@ -16,10 +16,8 @@ use rand::{distributions::Standard, prelude::Distribution, rngs::StdRng, Rng, Se
 use std::sync::Arc;
 
 use crate::{
-    allocators::boxed::BoxedAllocator,
-    implementations::{naive::ImgUnit, Naive},
-    windows::Rect,
-    Allocator, Engine, Implementation, Scalar, WindowFunction,
+    allocators::boxed::BoxedAllocator, implementations::Naive, windows::Rect, Allocator, Engine,
+    ImgUnit, Implementation, Scalar, WindowFunction,
 };
 const ALPHA: Scalar = 0.5;
 const BETA: Scalar = 0.75;
