@@ -1,5 +1,6 @@
 use crate::Allocator;
 
+#[derive(Default)]
 pub struct ArrayAllocator;
 impl<T, const N: usize> Allocator<T, N> for ArrayAllocator
 where

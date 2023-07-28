@@ -16,20 +16,21 @@ use num_complex::{Complex, ComplexFloat};
 use num_traits::{One, Zero};
 use windows::Rect;
 
-use self::implementations::CooleyTukey;
+use self::implementations::cooley_tukey::CooleyTukey;
 
 pub mod allocators;
 pub mod implementations;
 pub mod windows;
 
-pub trait WindowFunction<T>
+pub trait WindowFunction<T, const N: usize>
 where
     T: Copy,
 {
     type ItemMapper<'a, TIter: IntoIterator<Item = &'a T>>: IntoIterator<Item = T>
     where
         T: 'a;
-    fn windowed<'a, const N: usize, TIter: IntoIterator<Item = &'a T>>(
+    fn windowed<'a, TIter: IntoIterator<Item = &'a T>>(
+        &self,
         v: TIter,
     ) -> Self::ItemMapper<'a, TIter>
     where
@@ -46,22 +47,22 @@ where
     A: Allocator<T, N>,
     T: Copy,
 {
-    type Cache: Default;
-    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element, cache: &Self::Cache);
+    fn fft(
+        &self,
+        v: impl IntoIterator<Item = T>, spectrum: &mut A::Element);
 }
 
 pub struct Engine<T, const N: usize, I, W, A>
 where
-    A: Allocator<T, N>,
-    I: Implementation<T, N, A>,
-    W: WindowFunction<T>,
+    A: Allocator<T, N> + Default,
+    I: Implementation<T, N, A> + Default,
+    W: WindowFunction<T, N> + Default,
     T: Copy,
 {
-    impl_marker: PhantomData<I>,
-    allocator_marker: PhantomData<A>,
-    window_marker: PhantomData<W>,
-    element_marker: PhantomData<T>,
-    cache: <I as Implementation<T, N, A>>::Cache,
+    implementation: I,
+    allocator: A,
+    window: W,
+    element_marker: PhantomData<T>
 }
 
 #[cfg(feature = "alloc")]
@@ -70,7 +71,7 @@ type DefaultAllocator = allocators::boxed::BoxedAllocator;
 #[cfg(not(feature = "alloc"))]
 type DefaultAllocator = allocators::array::ArrayAllocator;
 
-impl<T, const N: usize> Default for Engine<T, N, CooleyTukey, Rect, DefaultAllocator>
+impl<T, const N: usize, const HALF_N: usize> Default for Engine<T, N, CooleyTukey<T, HALF_N>, Rect, DefaultAllocator>
 where
     T: Copy
         + Add<Output = T>
@@ -80,31 +81,29 @@ where
         + ComplexFloat
         + Default,
 {
-    fn default() -> Engine<T, N, CooleyTukey, Rect, DefaultAllocator> {
+    fn default() -> Engine<T, N, CooleyTukey<T, HALF_N>, Rect, DefaultAllocator> {
         Engine {
-            impl_marker: PhantomData,
-            allocator_marker: PhantomData,
-            window_marker: PhantomData,
-            element_marker: PhantomData,
-            cache: <CooleyTukey as Implementation<T, N, DefaultAllocator>>::Cache::default(),
+            implementation: Default::default(),
+            allocator: Default::default(),
+            window: Default::default(),
+            element_marker: PhantomData
         }
     }
 }
 
 impl<T, const N: usize, I, W, A> Engine<T, N, I, W, A>
 where
-    A: Allocator<T, N>,
-    I: Implementation<T, N, A>,
-    W: WindowFunction<T>,
+    A: Allocator<T, N> + Default,
+    I: Implementation<T, N, A> + Default,
+    W: WindowFunction<T, N> + Default,
     T: Copy,
 {
     pub fn new() -> Engine<T, N, I, W, A> {
         Engine {
-            impl_marker: PhantomData,
-            allocator_marker: PhantomData,
-            window_marker: PhantomData,
-            element_marker: PhantomData,
-            cache: <I as Implementation<T, N, A>>::Cache::default(),
+            implementation: Default::default(),
+            allocator: Default::default(),
+            window: Default::default(),
+            element_marker: PhantomData
         }
     }
 
@@ -115,7 +114,7 @@ where
     ) where
         T: 'a,
     {
-        <I as Implementation<T, N, A>>::fft(W::windowed::<N, TIter>(v), spectrum, &self.cache);
+        self.implementation.fft(self.window.windowed::<TIter>(v), spectrum);
     }
 }
 

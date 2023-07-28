@@ -1,6 +1,7 @@
 use crate::Allocator;
 use alloc::boxed::Box;
 
+#[derive(Default)]
 pub struct BoxedAllocator;
 impl<T, const N: usize> Allocator<T, N> for BoxedAllocator
 where

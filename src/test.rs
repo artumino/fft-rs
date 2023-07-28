@@ -21,13 +21,13 @@ use crate::{
 };
 const ALPHA: Scalar = 0.5;
 const BETA: Scalar = 0.75;
-const N: usize = 32;
+pub const N: usize = 32;
 
 pub(crate) trait EngineTest<T, const N: usize, A, W, I>
 where
-    A: Allocator<T, N>,
-    I: Implementation<T, N, A>,
-    W: WindowFunction<T>,
+    A: Allocator<T, N> + Default,
+    I: Implementation<T, N, A> + Default,
+    W: WindowFunction<T, N> + Default,
     T: Copy + Mul<Scalar, Output = T> + ImgUnit + ComplexFloat,
 {
     fn naive_engine() -> Engine<T, N, Naive, W, A>;
@@ -46,7 +46,7 @@ pub(crate) struct TestFixture<
     implementation_marker: PhantomData<I>,
 }
 
-impl<T, const N: usize, A: Allocator<T, N>, I: Implementation<T, N, A>> EngineTest<T, N, A, Rect, I>
+impl<T, const N: usize, A: Allocator<T, N> + Default, I: Implementation<T, N, A> + Default> EngineTest<T, N, A, Rect, I>
     for TestFixture<T, N, A, I>
 where
     T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Scalar, Output = T> + ImgUnit + ComplexFloat,
@@ -64,7 +64,7 @@ where
     }
 }
 
-impl<T, const N: usize, A: Allocator<T, N>, I: Implementation<T, N, A>> TestFixture<T, N, A, I>
+impl<T, const N: usize, A: Allocator<T, N> + Default, I: Implementation<T, N, A> + Default> TestFixture<T, N, A, I>
 where
     T: Copy
         + Add<Output = T>

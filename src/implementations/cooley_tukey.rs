@@ -10,15 +10,18 @@ use micromath::F32Ext;
 
 use crate::ComplexFloat;
 
-use super::CooleyTukey;
-
-#[cfg(feature = "alloc")]
-pub struct TwiddleCache<T, const N: usize> {
-    cache: Box<[T]>,
+#[derive(Default)]
+pub struct CooleyTukey<T, const HALF_N: usize>
+    where T: Copy + ImgUnit + ComplexFloat + Mul<Scalar, Output = T>
+{
+    twiddles: TwiddleCache<T, HALF_N>
 }
 
-#[cfg(feature = "alloc")]
-impl<T, const N: usize> TwiddleCache<T, N>
+pub struct TwiddleCache<T, const HALF_N: usize> {
+    cache: [T; HALF_N],
+}
+
+impl<T, const HALF_N: usize> TwiddleCache<T, HALF_N>
 where
     T: Copy + ImgUnit + ComplexFloat + Mul<Scalar, Output = T>,
 {
@@ -27,15 +30,13 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
-impl<T, const N: usize> Default for TwiddleCache<T, N>
+impl<T, const HALF_N: usize> Default for TwiddleCache<T, HALF_N>
 where
     T: Copy + ImgUnit + ComplexFloat + Mul<Scalar, Output = T>,
 {
     fn default() -> Self {
-        let half_n = N >> 1;
-        let f_n = N as Scalar;
-        let mut twiddles = vec![T::zero(); half_n].into_boxed_slice();
+        let f_n = (HALF_N >> 1) as Scalar;
+        let mut twiddles = [T::zero(); HALF_N];
         for (i, twiddle) in twiddles.iter_mut().enumerate() {
             *twiddle = calculate_twiddle::<T>(i, f_n);
         }
@@ -63,18 +64,13 @@ where
     (T::img_unit() * omega).exp()
 }
 
-impl<T, const N: usize, A> Implementation<T, N, A> for CooleyTukey
+impl<T, const N: usize, const HALF_N: usize, A> Implementation<T, N, A> for CooleyTukey<T, HALF_N>
 where
     A: Allocator<T, N>,
     T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Scalar, Output = T> + ImgUnit + ComplexFloat,
-{
-    #[cfg(feature = "alloc")]
-    type Cache = TwiddleCache<T, N>;
+    {
 
-    #[cfg(not(feature = "alloc"))]
-    type Cache = ();
-
-    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element, cache: &Self::Cache) {
+    fn fft(&self, v: impl IntoIterator<Item = T>, spectrum: &mut A::Element) {
         // Since we could be in a circular buffer, we copy data to a local buffer.
         // TODO: Maybe avoid this (without complicating the interface too much)
         let mut buffer = A::allocate();
@@ -111,7 +107,7 @@ where
 
                 for k in j..j + stride {
                     #[cfg(feature = "alloc")]
-                    let twiddle = cache.get(m);
+                    let twiddle = self.twiddles.get(m);
 
                     #[cfg(not(feature = "alloc"))]
                     let twiddle = calculate_twiddle::<T>(k, f_n);
@@ -134,20 +130,22 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{implementations::CooleyTukey, test::ComplexTestFixture};
+    use num_complex::Complex32;
+
+    use crate::{implementations::cooley_tukey::CooleyTukey, test::{ComplexTestFixture, self}};
 
     #[test]
     fn impulse_test() {
-        ComplexTestFixture::<CooleyTukey>::impulse_test();
+        ComplexTestFixture::<CooleyTukey<Complex32, { test::N / 2 }>>::impulse_test();
     }
 
     #[test]
     fn linearity_test() {
-        ComplexTestFixture::<CooleyTukey>::linearity_test();
+        ComplexTestFixture::<CooleyTukey<Complex32, { test::N / 2 }>>::linearity_test();
     }
 
     #[test]
     fn ground_truth_test() {
-        ComplexTestFixture::<CooleyTukey>::ground_truth_test();
+        ComplexTestFixture::<CooleyTukey<Complex32, { test::N / 2 }>>::ground_truth_test();
     }
 }

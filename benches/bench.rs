@@ -10,7 +10,7 @@ use criterion::{
 };
 use fft::{
     allocators::{array::ArrayAllocator, boxed::BoxedAllocator},
-    implementations::{CooleyTukey, Naive},
+    implementations::{cooley_tukey::CooleyTukey, Naive},
     windows::{hanning::Hanning, Rect},
     Allocator, ImgUnit, Implementation, Scalar, WindowFunction,
 };
@@ -24,9 +24,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     run_naive_bench_group::<Complex32, Hanning>(c, "Naive<Complex32> + Hanning");
 }
 
-fn run_cooley_bench_group<T, W>(c: &mut Criterion, name: &'static str)
+fn run_cooley_bench_group<T, W, const N: usize>(c: &mut Criterion, name: &'static str)
 where
-    W: WindowFunction<T>,
+    W: WindowFunction<T, N> + Default,
     T: Copy
         + Debug
         + Default
@@ -35,7 +35,7 @@ where
         + Sub<Output = T>
         + ComplexFloat
         + ImgUnit,
-    [T]: Randomizable<T>,
+    [T]: Randomizable<T>
 {
     let mut group = c.benchmark_group(name);
     run_bench::<T, 1_048_576, CooleyTukey, W, BoxedAllocator>(&mut group);
@@ -51,7 +51,7 @@ where
 
 fn run_naive_bench_group<T, W>(c: &mut Criterion, name: &'static str)
 where
-    W: WindowFunction<T>,
+    W: Default,
     T: Copy
         + Debug
         + Default
@@ -72,9 +72,9 @@ where
 
 fn run_bench<T, const N: usize, I, W, A>(c: &mut BenchmarkGroup<'_, WallTime>)
 where
-    I: Implementation<T, N, A>,
-    A: Allocator<T, N>,
-    W: WindowFunction<T>,
+    I: Implementation<T, N, A> + Default,
+    A: Allocator<T, N> + Default,
+    W: WindowFunction<T, N> + Default,
     T: Copy + Debug + Default,
     [T]: Randomizable<T>,
 {

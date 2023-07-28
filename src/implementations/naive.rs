@@ -13,8 +13,7 @@ where
     A: Allocator<T, N>,
     T: Copy + Add<Output = T> + Sub<Output = T> + ImgUnit + Mul<Scalar, Output = T> + ComplexFloat,
 {
-    type Cache = ();
-    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element, _cache: &Self::Cache) {
+    fn fft(&self, v: impl IntoIterator<Item = T>, spectrum: &mut A::Element) {
         let f_n = N as Scalar;
         let mut buffer = A::allocate();
         let unit = T::img_unit();
