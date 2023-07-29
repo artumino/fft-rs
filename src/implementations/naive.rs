@@ -14,9 +14,14 @@ where
     T: Copy + Add<Output = T> + Sub<Output = T> + ImgUnit + Mul<Scalar, Output = T> + ComplexFloat,
 {
     type Cache = ();
-    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element, _cache: &Self::Cache) {
+    type InternalBuffer = A::Element;
+    fn fft(
+        v: impl IntoIterator<Item = T>,
+        spectrum: &mut A::Element,
+        buffer: &mut Self::InternalBuffer,
+        _cache: &Self::Cache,
+    ) {
         let f_n = N as Scalar;
-        let mut buffer = A::allocate();
         let unit = T::img_unit();
         let buffer = buffer.as_mut();
 
@@ -31,6 +36,14 @@ where
                 *x = *x + *y * (unit * omega).exp();
             }
         }
+    }
+
+    fn init_cache() -> Self::Cache {
+        Self::Cache::default()
+    }
+
+    fn init_buffer() -> Self::InternalBuffer {
+        A::allocate()
     }
 }
 

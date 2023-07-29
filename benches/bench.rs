@@ -82,7 +82,7 @@ where
     let strategy_name = std::any::type_name::<I>().split("::").last().unwrap();
     let vec = generate::<T, N>();
     let mut out_spec = A::allocate();
-    let boxed_engine = fft::Engine::<T, N, I, W, A>::new();
+    let mut boxed_engine = fft::Engine::<T, N, I, W, A>::new();
     c.bench_with_input(
         BenchmarkId::new(format!("{strategy_name}_{allocator_name}").as_str(), N),
         &N,

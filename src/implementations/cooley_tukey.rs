@@ -73,11 +73,15 @@ where
 
     #[cfg(not(feature = "alloc"))]
     type Cache = ();
+    type InternalBuffer = A::Element;
 
-    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element, cache: &Self::Cache) {
+    fn fft(
+        v: impl IntoIterator<Item = T>,
+        spectrum: &mut A::Element,
+        buffer: &mut Self::InternalBuffer,
+        cache: &Self::Cache,
+    ) {
         // Since we could be in a circular buffer, we copy data to a local buffer.
-        // TODO: Maybe avoid this (without complicating the interface too much)
-        let mut buffer = A::allocate();
         let buffer = buffer.as_mut();
         let spectrum = spectrum.as_mut();
 
@@ -85,50 +89,78 @@ where
             buffer[i] = x;
         }
 
-        // 1. Bit-reversal permutation
         let log_n = N.trailing_zeros() as usize;
         let half_n = N >> 1;
 
-        #[cfg(not(feature = "alloc"))]
-        let f_n = N as Scalar;
-
-        for i in (0..N).step_by(2) {
-            let j = bit_reversal(i, log_n);
-            let k = bit_reversal(i + 1, log_n);
-
-            spectrum[i] = buffer[j] + buffer[k];
-            spectrum[i + 1] = buffer[j] - buffer[k];
-        }
+        // 1. Bit-reversal permutation
+        bit_reversal_step::<T, N>(log_n, spectrum, buffer);
 
         // 2. Butterfly computation
-        let mut sublen = half_n;
-        let mut stride = 2;
-        for _ in 1..log_n {
-            sublen >>= 1;
-            for j in (0..N).step_by(stride * 2) {
+        butterfly_step(half_n, log_n, cache, spectrum);
+    }
+
+    fn init_cache() -> Self::Cache {
+        Self::Cache::default()
+    }
+
+    fn init_buffer() -> Self::InternalBuffer {
+        A::allocate()
+    }
+}
+
+#[inline]
+fn bit_reversal_step<T, const N: usize>(log_n: usize, spectrum: &mut [T], buffer: &mut [T])
+where
+    T: Add<Output = T> + Sub<Output = T> + Copy,
+{
+    for i in (0..N).step_by(2) {
+        let j = bit_reversal(i, log_n);
+        let k = bit_reversal(i + 1, log_n);
+
+        spectrum[i] = buffer[j] + buffer[k];
+        spectrum[i + 1] = buffer[j] - buffer[k];
+    }
+}
+
+#[inline]
+fn butterfly_step<T, const N: usize>(
+    half_n: usize,
+    log_n: usize,
+    cache: &TwiddleCache<T, N>,
+    spectrum: &mut [T],
+) where
+    T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Scalar, Output = T> + ImgUnit + ComplexFloat,
+{
+    #[cfg(not(feature = "alloc"))]
+    let f_n = N as Scalar;
+
+    let mut sublen = half_n;
+    let mut stride = 2;
+    for _ in 1..log_n {
+        sublen >>= 1;
+        for j in (0..N).step_by(stride * 2) {
+            #[cfg(feature = "alloc")]
+            let mut m = 0;
+
+            for k in j..j + stride {
                 #[cfg(feature = "alloc")]
-                let mut m = 0;
+                let twiddle = cache.get(m);
 
-                for k in j..j + stride {
-                    #[cfg(feature = "alloc")]
-                    let twiddle = cache.get(m);
+                #[cfg(not(feature = "alloc"))]
+                let twiddle = calculate_twiddle::<T>(k, f_n);
 
-                    #[cfg(not(feature = "alloc"))]
-                    let twiddle = calculate_twiddle::<T>(k, f_n);
+                let a = spectrum[k + stride] * twiddle;
+                let b = spectrum[k];
+                spectrum[k] = b + a;
+                spectrum[k + stride] = b - a;
 
-                    let a = spectrum[k + stride] * twiddle;
-                    let b = spectrum[k];
-                    spectrum[k] = b + a;
-                    spectrum[k + stride] = b - a;
-
-                    #[cfg(feature = "alloc")]
-                    {
-                        m += sublen;
-                    }
+                #[cfg(feature = "alloc")]
+                {
+                    m += sublen;
                 }
             }
-            stride <<= 1;
         }
+        stride <<= 1;
     }
 }
 

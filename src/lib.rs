@@ -46,8 +46,16 @@ where
     A: Allocator<T, N>,
     T: Copy,
 {
-    type Cache: Default;
-    fn fft(v: impl IntoIterator<Item = T>, spectrum: &mut A::Element, cache: &Self::Cache);
+    type Cache;
+    type InternalBuffer;
+    fn init_cache() -> Self::Cache;
+    fn init_buffer() -> Self::InternalBuffer;
+    fn fft(
+        v: impl IntoIterator<Item = T>,
+        spectrum: &mut A::Element,
+        buffer: &mut Self::InternalBuffer,
+        cache: &Self::Cache,
+    );
 }
 
 pub struct Engine<T, const N: usize, I, W, A>
@@ -61,7 +69,8 @@ where
     allocator_marker: PhantomData<A>,
     window_marker: PhantomData<W>,
     element_marker: PhantomData<T>,
-    cache: <I as Implementation<T, N, A>>::Cache,
+    cache: I::Cache,
+    impl_buffer: I::InternalBuffer,
 }
 
 #[cfg(feature = "alloc")]
@@ -87,6 +96,8 @@ where
             window_marker: PhantomData,
             element_marker: PhantomData,
             cache: <CooleyTukey as Implementation<T, N, DefaultAllocator>>::Cache::default(),
+            impl_buffer:
+                <CooleyTukey as Implementation<T, N, DefaultAllocator>>::InternalBuffer::default(),
         }
     }
 }
@@ -104,18 +115,24 @@ where
             allocator_marker: PhantomData,
             window_marker: PhantomData,
             element_marker: PhantomData,
-            cache: <I as Implementation<T, N, A>>::Cache::default(),
+            cache: <I as Implementation<T, N, A>>::init_cache(),
+            impl_buffer: <I as Implementation<T, N, A>>::init_buffer(),
         }
     }
 
     pub fn fft<'a, TIter: IntoIterator<Item = &'a T>>(
-        &self,
+        &mut self,
         v: TIter,
         spectrum: &mut <A as Allocator<T, N>>::Element,
     ) where
         T: 'a,
     {
-        <I as Implementation<T, N, A>>::fft(W::windowed::<N, TIter>(v), spectrum, &self.cache);
+        <I as Implementation<T, N, A>>::fft(
+            W::windowed::<N, TIter>(v),
+            spectrum,
+            &mut self.impl_buffer,
+            &self.cache,
+        );
     }
 }
 

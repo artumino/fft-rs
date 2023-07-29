@@ -84,7 +84,7 @@ where
     Standard: Distribution<T>,
 {
     pub fn impulse_test() {
-        let engine = Self::test_engine();
+        let mut engine = Self::test_engine();
         let impulse = generate_impulse::<N, 0, T>();
         let mut fft_impulse = A::allocate();
         engine.fft(impulse.as_slice(), &mut fft_impulse);
@@ -96,7 +96,7 @@ where
     }
 
     pub fn linearity_test() {
-        let engine = Self::test_engine();
+        let mut engine = Self::test_engine();
         let v = generate::<N, T>(|idx| T::one() * idx as Scalar);
         let e = generate::<N, T>(|idx| T::one() * (idx + 1usize) as Scalar);
 
@@ -125,8 +125,8 @@ where
 
     const GROUND_TEST_SEEDS: [u64; 3] = [1234, 495611, 38596722];
     pub fn ground_truth_test() {
-        let engine = Self::test_engine();
-        let naive_engine = Self::naive_engine();
+        let mut engine = Self::test_engine();
+        let mut naive_engine = Self::naive_engine();
 
         for seed in Self::GROUND_TEST_SEEDS.iter() {
             let mut rng = StdRng::seed_from_u64(*seed);
